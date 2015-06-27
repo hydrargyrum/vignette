@@ -17,21 +17,21 @@ class ThumbnailTests(unittest.TestCase):
 		return md5.new(p).hexdigest()
 	
 	def path(self, m, size):
-		return os.path.expanduser('~/.thumbnails/%s/%s.png' % (size, m))
+		return os.path.expanduser('~/.cache/thumbnails/%s/%s.png' % (size, m))
 		
 	def setUp(self):
 		self.rp = '/tmp/rose.png'
 		self.ru = 'file:///tmp/rose.png'
 		self.rm = self.md5(self.ru)
-		self.rt = os.path.expanduser('~/.thumbnails/large/%s.png' % self.rm)
+		self.rt = os.path.expanduser('~/.cache/thumbnails/large/%s.png' % self.rm)
 		genRose(self.rp)
 		self.rmt = int(os.path.getmtime(self.rp))
 		
 		self.tp = '/tmp/test.txt'
 		self.tu = 'file:///tmp/test.txt'
 		self.tm = self.md5(self.tu)
-		self.tt = os.path.expanduser('~/.thumbnails/large/%s.png' % self.tm)
-		self.tf = os.path.expanduser('~/.thumbnails/fail/test-1.0/%s.png' % self.tm)
+		self.tt = os.path.expanduser('~/.cache/thumbnails/large/%s.png' % self.tm)
+		self.tf = os.path.expanduser('~/.cache/thumbnails/fail/test-1.0/%s.png' % self.tm)
 		os.system(': > /tmp/test.txt')
 		self.tmt = int(os.path.getmtime(self.tp))
 		
