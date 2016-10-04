@@ -11,7 +11,7 @@
 # TODO allow mtime no-check
 
 
-'''Generate and retrieve thumbnails according to the `Freedesktop.org thumbnail standard`_.
+"""Generate and retrieve thumbnails according to the `Freedesktop.org thumbnail standard`_.
 
 Summary of the thumbnail standard
 =================================
@@ -64,7 +64,7 @@ Ask for a thumbnail or generate it manually, for example a web-browser generatin
 
 .. _Freedesktop.org thumbnail standard: http://triq.net/~jens/thumbnail-spec/index.html
 
-'''
+"""
 
 
 import PIL.Image as PILI
@@ -89,18 +89,21 @@ def _any2size(size):
 		except ValueError:
 			pass
 
+
 _URI_RE = re.compile(r'[a-zA-Z0-9.+-]+:')
 
+
 def _any2uri(sth):
-	'''Get an URI from the parameter
+	"""Get an URI from the parameter
 
 	If it's already an URI, return it, else return a file:// URL of it
-	'''
+	"""
 
 	if _URI_RE.match(sth):
 		return sth
 	else:
 		return 'file://' + os.path.abspath(sth)
+
 
 def _create_pnginfo(uri, mtime, moreinfo=None):
 	outinfo = PILP.PngInfo()
@@ -114,15 +117,18 @@ def _create_pnginfo(uri, mtime, moreinfo=None):
 
 	return outinfo
 
+
 def _any2mtime(origname, mtime=None):
 	if mtime is None:
 		return int(os.path.getmtime(origname))
 	else:
 		return mtime
 
+
 def _thumb_path_prefix():
 	xdgcache = os.getenv('XDG_CACHE_HOME', os.path.expanduser('~/.cache'))
 	return os.path.join(xdgcache, 'thumbnails')
+
 
 def _gen_filenames(name, size=None):
 	uri = _any2uri(name)
@@ -140,7 +146,7 @@ def _gen_filenames(name, size=None):
 
 # functions that do not create thumbnails
 def thumbnail_path(name, size):
-	'''Get the path of the potential thumbnail.
+	"""Get the path of the potential thumbnail.
 
 	The thumbnail file may or may not exist.
 
@@ -148,12 +154,13 @@ def thumbnail_path(name, size):
 
 	`size` can be any of 'large', '256' or 256 for large thumbnails
 	or 'normal', '128' or 128 for small thumbnails.
-	'''
+	"""
 
 	return _gen_filenames(name, size)[0]
 
+
 def _fine_existing_thumbnail_path(name, size=None, mtime=None, use_fail_appname=None):
-	'''Get the path on an existing thumbnail or an error code'''
+	"""Get the path on an existing thumbnail or an error code"""
 
 	mtime = _any2mtime(name, mtime)
 
@@ -182,12 +189,12 @@ def _fine_existing_thumbnail_path(name, size=None, mtime=None, use_fail_appname=
 
 
 def existing_thumbnail_path(name, size=None, mtime=None):
-	'''Get the path of the thumbnail or None if it doesn't exist.
+	"""Get the path of the thumbnail or None if it doesn't exist.
 
 	`name` can be a file path or any URL.
 
 	If `size` is None, tries with the large thumbnail size, then with the small size.
-	'''
+	"""
 
 	code, filename = _fine_existing_thumbnail_path(name, size, mtime)
 	if code == 0:
@@ -195,8 +202,9 @@ def existing_thumbnail_path(name, size=None, mtime=None):
 	else:
 		return False
 
+
 def is_thumbnail_failed(name, appname):
-	'''Is the thumbnail for `name` failed with `appname` ?'''
+	"""Is the thumbnail for `name` failed with `appname` ?"""
 
 	prefix = _thumb_path_prefix()
 	apppath = os.path.join(prefix, 'fail', appname)
@@ -206,7 +214,7 @@ def is_thumbnail_failed(name, appname):
 
 # functions that create thumbnails
 def gen_image_thumbnail(filename, size=None, moreinfo=None, use_fail_appname=None):
-	'''Get the path of the thumbnail and create it if necessary.
+	"""Get the path of the thumbnail and create it if necessary.
 
 	Returns None if an error occured.  Creates directories if they don't exist.
 
@@ -218,7 +226,7 @@ def gen_image_thumbnail(filename, size=None, moreinfo=None, use_fail_appname=Non
 	`moreinfo` is a dict that can contain additional key/values to store in the thumbnail file.
 
 	If `use_fail_appname` is not None, it will be used to check failed thumbnails, or to create one if an error occurs.
-	'''
+	"""
 
 	code, thfilename = _fine_existing_thumbnail_path(filename, size)
 	if code == 0:
@@ -228,15 +236,16 @@ def gen_image_thumbnail(filename, size=None, moreinfo=None, use_fail_appname=Non
 	else:
 		return force_gen_image_thumbnail(filename, size, moreinfo, use_fail_appname)
 
+
 def force_gen_image_thumbnail(filename, size=None, moreinfo=None, use_fail_appname=None):
-	'''Generate a thumbnail for `filename`, even if the thumbnail existed.
+	"""Generate a thumbnail for `filename`, even if the thumbnail existed.
 
 	Returns the path of the thumbnail generated. Creates directories if they don't exist.
 
 	`filename` can't be a URL and must be a local file, in an image format.
 
 	`moreinfo` is a dict that can contain additional key/values to store in the thumbnail file.
-	'''
+	"""
 
 	if size is not None:
 		sizeinfo = _any2size(size)
@@ -270,7 +279,7 @@ def force_gen_image_thumbnail(filename, size=None, moreinfo=None, use_fail_appna
 
 
 def put_thumbnail(origname, thumbpath=None, size=None, mtime=None, moreinfo=None):
-	'''Put a thumbnail into the store.
+	"""Put a thumbnail into the store.
 
 	This method is typically used for thumbnailing non-image files or non-local files.
 	The application does the thumbnail on its own, and pushes the thumbnail to the store.
@@ -284,7 +293,7 @@ def put_thumbnail(origname, thumbpath=None, size=None, mtime=None, moreinfo=None
 	(see the module doc for a biref description about mtime).
 
 	`moreinfo` is a dict that can contain additional key/values to store in the thumbnail file.
-	'''
+	"""
 
 	if thumbpath is None:
 		thumbpath = existing_thumbnail_path(thumbpath, size, mtime)
@@ -304,8 +313,9 @@ def put_thumbnail(origname, thumbpath=None, size=None, mtime=None, moreinfo=None
 
 	return destpath
 
+
 def put_fail(origname, appname, mtime=None, moreinfo=None):
-	'''Create a failed thumbnail file.
+	"""Create a failed thumbnail file.
 
 	Creates directories if they don't exist.
 
@@ -313,7 +323,7 @@ def put_fail(origname, appname, mtime=None, moreinfo=None):
 	(see the module doc for a biref description about mtime).
 
 	`moreinfo` is a dict that can contain additional key/values to store in the thumbnail file.
-	'''
+	"""
 
 	prefix = _thumb_path_prefix()
 	apppath = os.path.join(prefix, 'fail', appname)
