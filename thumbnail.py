@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 
 # started 2009-03-10
 # 2009-03-14
@@ -324,3 +325,7 @@ def put_fail(origname, appname, mtime=None, moreinfo=None):
 	img = PILI.new('RGBA', (1, 1))
 	md5uri = md5.new(_any2uri(origname)).hexdigest()
 	img.save(os.path.join(apppath, md5uri + '.png'), pnginfo=outinfo)
+
+
+if __name__ == '__main__':
+	print(gen_image_thumbnail(sys.argv[1]))
