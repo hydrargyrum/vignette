@@ -6,7 +6,6 @@
 
 # TODO handle more exceptions
 # TODO support thumbnails smaller than 128x128
-# TODO verify the source URI is the same as the one in the thumbnail (for now the MD5 is trusted on)
 # TODO .thumblocal
 # TODO allow mtime no-check
 
@@ -26,14 +25,14 @@ Module functions
 ================
 The module's functions take care of putting the two mandatory attributes in the thumbnail file.
 
-Functions for querying, that do not generate thumbnails, and can be used with files or URLs, that can be non-images :
-* thumbnail_path
-* existing_thumbnail_path
+Functions for querying, that do not generate thumbnails, and can be used with files or URLs, that can be non-images:
+* build_thumbnail_path
+* try_get_thumbnail
 * is_thumbnail_failed
 
-Functions that have side effects, which write thumbnails, or "fail-files", they can require local-files (see the function's doc) :
-* gen_image_thumbnail
-* force_gen_image_thumbnail
+Functions that have side effects, which write thumbnails, or "fail-files", they can require local-files (see the function's doc):
+* get_thumbnail
+* create_thumbnail
 * put_thumbnail
 * put_fail
 
@@ -42,27 +41,30 @@ Examples
 ========
 
 Just ask for thumbnails of local images, automatically creating them if necessary::
-  thumb_image = gen_image_thumbnail('/my/file.jpg')
+  thumb_image = get_thumbnail('/my/file.jpg')
   local_app_display(thumb_image)
 
-Ask for a thumbnail or generate it manually, for example a web-browser generating pages previews, that this module can't do himself::
+Ask for a thumbnail or generate it manually, for example a web-browser generating pages previews,
+that this module can't do himself::
+
   orig_url = 'http://example.com/file.pdf'
-  thumb_image = existing_thumbnail_path(orig_url, mtime=0) # mtime is not used in this example
+  thumb_image = try_get_thumbnail(orig_url, mtime=0) # mtime is not used in this example
 
   if not thumb_image:
+    thumb_image = build_thumbnail_path(orig_url, 'large')
     try:
-      local_app_make_preview(orig_url, '/tmp/preview.jpg')
+      local_app_make_preview(orig_url, thumb_image)
     except NetworkError:
       put_fail(orig_url, 'mybrowser-1.0', mtime=0)
     else:
-      thumb_image = put_thumbnail(orig_url, '/tmp/preview.jpg', mtime=0)
+      thumb_image = put_thumbnail(orig_url, 'large', mtime=0)
     if is_thumbnail_failed(orig_url):
       thumb_image = 'error.png'
 
   local_app_display(thumb_image)
 
 
-.. _Freedesktop.org thumbnail standard: http://triq.net/~jens/thumbnail-spec/index.html
+.. _Freedesktop.org thumbnail standard: https://specifications.freedesktop.org/thumbnail-spec/thumbnail-spec-latest.html
 
 """
 
@@ -74,7 +76,32 @@ import os
 import re
 import tempfile
 
-__all__ = 'thumbnail_path existing_thumbnail_path is_thumbnail_failed gen_image_thumbnail force_gen_image_thumbnail put_thumbnail put_fail'.split()
+
+__all__ = (
+	'get_thumbnail',
+	'try_get_thumbnail',
+	'build_thumbnail_path',
+	'create_thumbnail',
+	'put_thumbnail',
+	'put_fail',
+	'is_thumbnail_failed',
+	'KEY_WIDTH',
+	'KEY_HEIGHT',
+	'KEY_SIZE',
+	'KEY_MIME',
+	'KEY_DOC_PAGES',
+	'KEY_MOVIE_LENGTH',
+)
+
+
+KEY_URI = 'Thumb::URI'
+KEY_MTIME = 'Thumb::MTime'
+KEY_WIDTH = 'Thumb::Image::Width'
+KEY_HEIGHT = 'Thumb::Image::Height'
+KEY_SIZE = 'Thumb::Size'
+KEY_MIME = 'Thumb::Mimetype'
+KEY_DOC_PAGES =  'Thumb::Document::Pages'
+KEY_MOVIE_LENGTH = 'Thumb::Movie::Length'
 
 
 def _any2size(size):
@@ -105,19 +132,6 @@ def _any2uri(sth):
 		return 'file://' + os.path.abspath(sth)
 
 
-def _create_pnginfo(uri, mtime, moreinfo=None):
-	outinfo = PILP.PngInfo()
-
-	outinfo.add_text('Thumb::URI', uri)
-	outinfo.add_text('Thumb::MTime', str(mtime))
-
-	if moreinfo:
-		for k in moreinfo:
-			outinfo.add_text(k, str(moreinfo[k]))
-
-	return outinfo
-
-
 def _any2mtime(origname, mtime=None):
 	if mtime is None:
 		return int(os.path.getmtime(origname))
@@ -130,212 +144,253 @@ def _thumb_path_prefix():
 	return os.path.join(xdgcache, 'thumbnails')
 
 
-def _gen_filenames(name, size=None):
-	uri = _any2uri(name)
-	md5uri = md5.new(uri).hexdigest()
-	prefix = _thumb_path_prefix()
-
-	if size:
-		sizename = _any2size(size)[1]
-		return (os.path.join(prefix, sizename, '%s.png' % md5uri),)
-	else:
-		large = os.path.join(prefix, 'large', '%s.png' % md5uri)
-		normal = os.path.join(prefix, 'normal', '%s.png' % md5uri)
-		return (large, normal)
+def hash_name(src):
+	return md5.new(_any2uri(src)).hexdigest()
 
 
-# functions that do not create thumbnails
-def thumbnail_path(name, size):
-	"""Get the path of the potential thumbnail.
+def is_thumbnail_failed(src, appname):
+	"""Is the thumbnail for `name` failed with `appname`?
 
-	The thumbnail file may or may not exist.
-
-	`name` can be a file path or any URL.
-
-	`size` can be any of 'large', '256' or 256 for large thumbnails
-	or 'normal', '128' or 128 for small thumbnails.
+	:param src: the URL or path of the source file.
+	:type src: str
 	"""
-
-	return _gen_filenames(name, size)[0]
-
-
-def _fine_existing_thumbnail_path(name, size=None, mtime=None, use_fail_appname=None):
-	"""Get the path on an existing thumbnail or an error code"""
-
-	mtime = _any2mtime(name, mtime)
-
-	def do1(filename):
-		if not os.path.exists(filename):
-			return 1
-
-		try:
-			img = PILI.open(filename)
-			tntime = int(img.info['Thumb::MTime'])
-		except (KeyError, IOError):
-			return 2
-		else:
-			return (mtime != tntime) and 3 or 0
-
-	fns = _gen_filenames(name, size) # FIXME ()
-	for filename in fns:
-		code = do1(filename)
-		if code == 0:
-			return (code, filename)
-
-	if use_fail_appname is not None and is_thumbnail_failed(name, use_fail_appname):
-		return (4, None)
-
-	return (code, filename)
-
-
-def existing_thumbnail_path(name, size=None, mtime=None):
-	"""Get the path of the thumbnail or None if it doesn't exist.
-
-	`name` can be a file path or any URL.
-
-	If `size` is None, tries with the large thumbnail size, then with the small size.
-	"""
-
-	code, filename = _fine_existing_thumbnail_path(name, size, mtime)
-	if code == 0:
-		return filename
-	else:
-		return False
-
-
-def is_thumbnail_failed(name, appname):
-	"""Is the thumbnail for `name` failed with `appname` ?"""
 
 	prefix = _thumb_path_prefix()
 	apppath = os.path.join(prefix, 'fail', appname)
-	md5uri = md5.new(_any2uri(name)).hexdigest()
-	return os.path.exists(os.path.join(apppath, md5uri + '.png'))
+	md5uri = hash_name(src)
+	return os.path.exists(os.path.join(apppath, '%s.png' % md5uri))
 
 
-# functions that create thumbnails
-def gen_image_thumbnail(filename, size=None, moreinfo=None, use_fail_appname=None):
-	"""Get the path of the thumbnail and create it if necessary.
+def put_thumbnail(src, size, thumb=None, mtime=None, moreinfo=None):
+	"""Put a thumbnail into the store.
 
-	Returns None if an error occured.  Creates directories if they don't exist.
+	This method is typically used for thumbnailing non-image files (like PDFs, videos) or
+	non-local files.
 
-	`filename` can't be a URL and must be a local file, in an image format.
+	The application creates the thumbnail image on its own, and pushes the thumbnail to the
+	store with this function.
 
-	`size` specifies the size of the thumbnail wanted. If there is not thumbnail with that size, it will be created with that size.
-	If `size` is None, it looks for any thumbnail size, and creates a large thumbnail if none is found.
-
-	`moreinfo` is a dict that can contain additional key/values to store in the thumbnail file.
-
-	If `use_fail_appname` is not None, it will be used to check failed thumbnails, or to create one if an error occurs.
+	:param src: the URL or path of the file thumbnailed.
+	:type src: str
+	:param size: desired size of thumbnail. Can be any of 'large', 256 for large
+	             thumbnails or 'normal', 128 for small thumbnails.
+	:param thumb: if None, path where the app created the thumbnail. The file will be copied
+	              copied to the target.
+	:param mtime: the modification time of the file thumbnailed. If `mtime` is None, `src`
+	              has to be a local file and its mtime will be read.
+	:param moreinfo: additional optional key/values to store in the thumbnail file.
+	:type moreinfo: dict
 	"""
 
-	code, thfilename = _fine_existing_thumbnail_path(filename, size)
-	if code == 0:
-		return thfilename
-	elif code == 4:
-		return False
-	else:
-		return force_gen_image_thumbnail(filename, size, moreinfo, use_fail_appname)
+	dest = build_thumbnail_path(src, size)
+
+	if thumb is not None and dest != thumb:
+		shutil.copyfile(thumb, dest)
+
+	PilBackend().update_metadata(src, dest, mtime, moreinfo)
+	os.chmod(dest, 0600)
+
+	return dest
 
 
-def force_gen_image_thumbnail(filename, size=None, moreinfo=None, use_fail_appname=None):
+def put_fail(src, appname, mtime=None, moreinfo=None):
+	"""Create a failed thumbnail info file.
+
+	Creates directories if they don't exist.
+
+	:param src: the URL or path of the file thumbnailed.
+	:type src: str
+	:param mtime: the modification time of the file thumbnailed. If `mtime` is None, `src`
+	              has to be a local file and its mtime will be read.
+	:param moreinfo: additional optional key/values to store in the thumbnail file.
+	:type moreinfo: dict
+	"""
+
+	prefix = os.path.join(_thumb_path_prefix(), 'fail', appname)
+	if not os.path.isdir(prefix):
+		os.makedirs(prefix, 0700)
+
+	md5uri = hash_name(src)
+	dest = os.path.join(prefix, '%s.png' % md5uri)
+	PilBackend().create_fail(src, dest, mtime, moreinfo)
+	os.chmod(dest, 0600)
+
+	return dest
+
+
+class PilBackend(object):
+	@staticmethod
+	def _pnginfo(uri, mtime, moreinfo=None):
+		outinfo = PILP.PngInfo()
+
+		outinfo.add_text(KEY_URI, uri)
+		outinfo.add_text(KEY_MTIME, str(mtime))
+
+		if moreinfo:
+			for k in moreinfo:
+				outinfo.add_text(k, str(moreinfo[k]))
+
+		return outinfo
+
+	@classmethod
+	def create_thumbnail(cls, src, dest, size, mtime, moreinfo=None):
+		img = PILI.open(src)
+
+		uri = _any2uri(src)
+		outinfo = cls._pnginfo(uri, mtime, moreinfo)
+		outinfo.add_text(KEY_WIDTH, str(img.size[0]))
+		outinfo.add_text(KEY_HEIGHT, str(img.size[1]))
+
+		img.thumbnail((size, size), PILI.ANTIALIAS)
+
+		tmppath = tempfile.mkstemp(suffix='.png', dir=os.path.dirname(dest))
+		os.close(tmppath[0])
+
+		img.save(tmppath[1], pnginfo=outinfo)
+		os.rename(tmppath[1], dest)
+		return dest
+
+	@classmethod
+	def create_fail(cls, src, dest, size, mtime, moreinfo=None):
+		outinfo = cls._pnginfo(_any2uri(src), _any2mtime(src, mtime), moreinfo)
+
+		img = PILI.new('RGBA', (1, 1))
+		img.save(dest, pnginfo=outinfo)
+
+	@staticmethod
+	def get_info(path):
+		img = PILI.open(path)
+		mtime = int(img.info[KEY_MTIME])
+
+		return {
+			'mtime': mtime,
+			'uri': img.info[KEY_URI],
+		}
+
+	@classmethod
+	def update_metadata(cls, src, dest, mtime=None, moreinfo=None):
+		img = PILI.open(dest)
+		mtime = _any2mtime(src, mtime)
+		outinfo = cls._pnginfo(_any2uri(src), mtime, moreinfo)
+		img.save(dest, pnginfo=outinfo)
+
+
+def create_thumbnail(src, size, moreinfo=None, use_fail_appname=None):
 	"""Generate a thumbnail for `filename`, even if the thumbnail existed.
 
 	Returns the path of the thumbnail generated. Creates directories if they don't exist.
 
-	`filename` can't be a URL and must be a local file, in an image format.
+	If the thumbnail cannot be generated and `use_fail_appname` is given, a failure info file
+	will be generated, associated to the given app name so it is not retried too often.
 
-	`moreinfo` is a dict that can contain additional key/values to store in the thumbnail file.
+	:param src: path of the source file. Must be an image file. Cannot be a URL.
+	:type src: str
+	:param moreinfo: additional optional key/values to store in the thumbnail file.
+	:type moreinfo: dict
+	:param use_fail_appname: app name to use when creating a failure info.
+	:type use_fail_appname: str
 	"""
 
-	if size is not None:
-		sizeinfo = _any2size(size)
+	size = _any2size(size)[0]
+	dest = build_thumbnail_path(src, size)
+	mtime = _any2mtime(src)
+	filesize = os.path.getsize(src)
+
+	if moreinfo is None:
+		moreinfo = {}
 	else:
-		sizeinfo = (256, 'large')
+		moreinfo = dict(moreinfo)
+	moreinfo[KEY_SIZE] = str(filesize)
 
-	thfilename = _gen_filenames(filename, sizeinfo[1])[0]
+	if not os.path.isdir(os.path.dirname(dest)):
+		os.makedirs(os.path.dirname(dest), 0700)
 
-	if not os.path.isdir(os.path.dirname(thfilename)):
-		os.makedirs(os.path.dirname(thfilename), 0700)
+	if PilBackend().create_thumbnail(src, dest, size, mtime, moreinfo):
+		os.chmod(dest, 0600)
+		return dest
 
-	try:
-		img = PILI.open(filename)
-
-		outinfo = _create_pnginfo(_any2uri(filename), int(os.path.getmtime(filename)), moreinfo)
-		outinfo.add_text('Thumb::Image::Width', str(img.size[0]))
-		outinfo.add_text('Thumb::Image::Height', str(img.size[1]))
-
-		img.thumbnail((sizeinfo[0], sizeinfo[0]), PILI.ANTIALIAS)
-
-		tmppath = tempfile.mkstemp(suffix='.png', dir=os.path.dirname(thfilename))
-		os.close(tmppath[0])
-
-		img.save(tmppath[1], pnginfo=outinfo)
-		os.rename(tmppath[1], thfilename)
-		return thfilename
-	except IOError:
-		if use_fail_appname is not None:
-			put_fail(filename, use_fail_appname, moreinfo=moreinfo)
-		return False
+	if use_fail_appname is not None:
+		put_fail(src, use_fail_appname)
 
 
-def put_thumbnail(origname, thumbpath=None, size=None, mtime=None, moreinfo=None):
-	"""Put a thumbnail into the store.
+def build_thumbnail_path(src, size):
+	"""Get the path of the potential thumbnail.
 
-	This method is typically used for thumbnailing non-image files or non-local files.
-	The application does the thumbnail on its own, and pushes the thumbnail to the store.
+	The thumbnail file may or may not exist.
 
-	`origname` is the URL or path of the file thumbnailed.
-
-	`thumbpath` is the path of the thumbnail to put in the store. It can be any local-file.
-	If `thumbpath` is None, the application already put the thumbnail at the path returned by `thumbnail_path` and the file should be added information.
-
-	`mtime` is the modification time of the file thumbnailed. If `mtime` is None, `origname` has to be a local file and its mtime will be read.
-	(see the module doc for a biref description about mtime).
-
-	`moreinfo` is a dict that can contain additional key/values to store in the thumbnail file.
+	:param src: path or URI of the source file.
+	:type src: str
+	:param size: desired size of thumbnail. Can be any of 'large', 256 for large
+	             thumbnails or 'normal', 128 for small thumbnails.
 	"""
 
-	if thumbpath is None:
-		thumbpath = existing_thumbnail_path(thumbpath, size, mtime)
-		img = PILI.open(thumbpath)
-		destpath = thumbpath
+	sizename = _any2size(size)[1]
+	prefix = os.path.join(_thumb_path_prefix(), sizename)
+	if src.startswith(prefix + '/'):
+		return src
+
+	md5uri = hash_name(src)
+	return os.path.join(prefix, '%s.png' % md5uri)
+
+
+def is_thumbnail_valid(thumbnail, uri, mtime):
+	info = PilBackend().get_info(thumbnail)
+	return info['uri'] == uri and info['mtime'] == mtime
+
+
+def try_get_thumbnail(src, size=None):
+	"""Get the path of the thumbnail or None if it doesn't exist.
+
+	:param src: path or URI of the source file.
+	:type src: str
+	:param size: desired size of thumbnail. Can be 'large', 256 or 'normal', 128. If None,
+	             tries with the large thumbnail size first, then with the normal size.
+	"""
+
+	if size is None:
+		sizes = ['large', 'normal']
 	else:
-		img = PILI.open(thumbpath)
-		if size is None:
-			size = max(img.size) # FIXME 64
-		destpath = thumbnail_path(origname, size)
+		sizes = [size]
 
-	if mtime is None:
-		mtime = int(os.path.getmtime(origname))
+	mtime = _any2mtime(src)
+	uri = _any2uri(src)
 
-	outinfo = _create_pnginfo(_any2uri(origname), mtime, moreinfo)
-	img.save(destpath, pnginfo=outinfo)
+	for size in sizes:
+		thumb = build_thumbnail_path(src, size)
+		if os.path.exists(thumb):
+			if src == thumb:
+				return src # bypass checks, the URI won't match
+			elif is_thumbnail_valid(thumb, uri, mtime):
+				return thumb
 
-	return destpath
 
+def get_thumbnail(src, size=None, use_fail_appname=None):
+	"""Get the path of the thumbnail and create it if necessary.
 
-def put_fail(origname, appname, mtime=None, moreinfo=None):
-	"""Create a failed thumbnail file.
+	Returns None if an error occured. Creates directories if they don't exist.
 
-	Creates directories if they don't exist.
+	If the thumbnail cannot be found, and a previous failure info file had been created with
+	the given app name, the thumbnail generation is not attempted and None is returned.
 
-	`mtime` is the modification time of the file thumbnailed. If `mtime` is None, `origname` has to be a local file and its mtime will be read.
-	(see the module doc for a biref description about mtime).
-
-	`moreinfo` is a dict that can contain additional key/values to store in the thumbnail file.
+	:param src: path of the source file. Must be an image file. Cannot be a URL.
+	:type src: str
+	:param size: desired size of thumbnail. Can be any of 'large', 256 for large
+	             thumbnails or 'normal', 128 for small thumbnails. If None, searches for any size.
+	:param moreinfo: additional optional key/values to store in the thumbnail file, if the thumbnail did not exist.
+	:type moreinfo: dict
+	:param use_fail_appname: app name to use when creating a failure info.
+	:type use_fail_appname: str
 	"""
 
-	prefix = _thumb_path_prefix()
-	apppath = os.path.join(prefix, 'fail', appname)
-	if not os.path.isdir(apppath):
-		os.makedirs(apppath, 0700)
+	thumb = try_get_thumbnail(src, size)
+	if thumb is not None:
+		return thumb
 
-	outinfo = _create_pnginfo(_any2uri(origname), _any2mtime(origname, mtime), moreinfo)
+	if use_fail_appname is not None and is_thumbnail_failed(src, use_fail_appname):
+		return None
 
-	img = PILI.new('RGBA', (1, 1))
-	md5uri = md5.new(_any2uri(origname)).hexdigest()
-	img.save(os.path.join(apppath, md5uri + '.png'), pnginfo=outinfo)
+	return create_thumbnail(src, size, use_fail_appname=use_fail_appname)
 
 
 if __name__ == '__main__':
-	print(gen_image_thumbnail(sys.argv[1]))
+	print(get_thumbnail(sys.argv[1]))
