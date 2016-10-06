@@ -69,8 +69,6 @@ that this module can't do himself::
 """
 
 
-import PIL.Image as PILI
-import PIL.PngImagePlugin as PILP
 import md5
 import os
 import re
@@ -190,7 +188,7 @@ def put_thumbnail(src, size, thumb=None, mtime=None, moreinfo=None):
 	if thumb is not None and dest != thumb:
 		shutil.copyfile(thumb, dest)
 
-	PilBackend().update_metadata(src, dest, mtime, moreinfo)
+	get_backend().update_metadata(src, dest, mtime, moreinfo)
 	os.chmod(dest, 0600)
 
 	return dest
@@ -215,7 +213,7 @@ def put_fail(src, appname, mtime=None, moreinfo=None):
 
 	md5uri = hash_name(src)
 	dest = os.path.join(prefix, '%s.png' % md5uri)
-	PilBackend().create_fail(src, dest, mtime, moreinfo)
+	get_backend().create_fail(src, dest, mtime, moreinfo)
 	os.chmod(dest, 0600)
 
 	return dest
@@ -223,8 +221,19 @@ def put_fail(src, appname, mtime=None, moreinfo=None):
 
 class PilBackend(object):
 	@staticmethod
+	def is_available():
+		try:
+			import PIL.Image
+			import PIL.PngImagePlugin
+		except ImportError:
+			return False
+		return True
+
+	@staticmethod
 	def _pnginfo(uri, mtime, moreinfo=None):
-		outinfo = PILP.PngInfo()
+		import PIL.PngImagePlugin
+
+		outinfo = PIL.PngImagePlugin.PngInfo()
 
 		outinfo.add_text(KEY_URI, uri)
 		outinfo.add_text(KEY_MTIME, str(mtime))
@@ -237,8 +246,10 @@ class PilBackend(object):
 
 	@classmethod
 	def create_thumbnail(cls, src, dest, size, mtime, moreinfo=None):
+		import PIL.Image
+
 		try:
-			img = PILI.open(src)
+			img = PIL.Image.open(src)
 		except IOError:
 			return None
 
@@ -247,7 +258,7 @@ class PilBackend(object):
 		outinfo.add_text(KEY_WIDTH, str(img.size[0]))
 		outinfo.add_text(KEY_HEIGHT, str(img.size[1]))
 
-		img.thumbnail((size, size), PILI.ANTIALIAS)
+		img.thumbnail((size, size), PIL.Image.ANTIALIAS)
 
 		tmppath = tempfile.mkstemp(suffix='.png', dir=os.path.dirname(dest))
 		os.close(tmppath[0])
@@ -258,14 +269,18 @@ class PilBackend(object):
 
 	@classmethod
 	def create_fail(cls, src, dest, size, mtime, moreinfo=None):
+		import PIL.Image
+
 		outinfo = cls._pnginfo(_any2uri(src), _any2mtime(src, mtime), moreinfo)
 
-		img = PILI.new('RGBA', (1, 1))
+		img = PIL.Image.new('RGBA', (1, 1))
 		img.save(dest, pnginfo=outinfo)
 
 	@staticmethod
 	def get_info(path):
-		img = PILI.open(path)
+		import PIL.Image
+
+		img = PIL.Image.open(path)
 		mtime = int(img.info[KEY_MTIME])
 
 		return {
@@ -279,6 +294,14 @@ class PilBackend(object):
 		mtime = _any2mtime(src, mtime)
 		outinfo = cls._pnginfo(_any2uri(src), mtime, moreinfo)
 		img.save(dest, pnginfo=outinfo)
+
+
+BACKENDS = [PilBackend()]
+
+def get_backend():
+	for backend in BACKENDS:
+		if backend.is_available():
+			return backend
 
 
 def create_thumbnail(src, size, moreinfo=None, use_fail_appname=None):
@@ -311,7 +334,7 @@ def create_thumbnail(src, size, moreinfo=None, use_fail_appname=None):
 	if not os.path.isdir(os.path.dirname(dest)):
 		os.makedirs(os.path.dirname(dest), 0700)
 
-	if PilBackend().create_thumbnail(src, dest, size, mtime, moreinfo):
+	if get_backend().create_thumbnail(src, dest, size, mtime, moreinfo):
 		os.chmod(dest, 0600)
 		return dest
 
@@ -340,7 +363,7 @@ def build_thumbnail_path(src, size):
 
 
 def is_thumbnail_valid(thumbnail, uri, mtime):
-	info = PilBackend().get_info(thumbnail)
+	info = get_backend().get_info(thumbnail)
 	return info['uri'] == uri and info['mtime'] == mtime
 
 
