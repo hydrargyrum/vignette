@@ -144,6 +144,20 @@ def _any2mtime(origname, mtime=None):
 		return mtime
 
 
+def _info_dict(d, mtime=None, src=None):
+	if d is None:
+		d = {}
+	else:
+		d = dict(d)
+
+	if mtime is not None or src is not None:
+		d.setdefault(KEY_MTIME, str(_any2mtime(src, mtime)))
+	if src is not None:
+		d.setdefault(KEY_URI, _any2uri(src))
+
+	return d
+
+
 def _thumb_path_prefix():
 	xdgcache = os.getenv('XDG_CACHE_HOME', os.path.expanduser('~/.cache'))
 	return os.path.join(xdgcache, 'thumbnails')
@@ -199,7 +213,8 @@ def put_thumbnail(src, size, thumb=None, mtime=None, moreinfo=None):
 	if thumb is not None and dest != thumb:
 		shutil.copyfile(thumb, dest)
 
-	get_backend().update_metadata(src, dest, mtime, moreinfo)
+	moreinfo = _info_dict(moreinfo, mtime=mtime, src=src)
+	get_backend().update_metadata(dest, moreinfo)
 	os.chmod(dest, 0o600)
 
 	return dest
@@ -224,7 +239,9 @@ def put_fail(src, appname, mtime=None, moreinfo=None):
 
 	md5uri = hash_name(src)
 	dest = os.path.join(prefix, '%s.png' % md5uri)
-	get_backend().create_fail(src, dest, mtime, moreinfo)
+
+	moreinfo = _info_dict(moreinfo, mtime=mtime, src=src)
+	get_backend().create_fail(dest, moreinfo)
 	os.chmod(dest, 0o600)
 
 	return dest
@@ -241,13 +258,10 @@ class PilBackend(object):
 		return True
 
 	@staticmethod
-	def _pnginfo(uri, mtime, moreinfo=None):
+	def _pnginfo(moreinfo=None):
 		import PIL.PngImagePlugin
 
 		outinfo = PIL.PngImagePlugin.PngInfo()
-
-		outinfo.add_text(KEY_URI, uri)
-		outinfo.add_text(KEY_MTIME, str(mtime))
 
 		if moreinfo:
 			for k in moreinfo:
@@ -256,7 +270,7 @@ class PilBackend(object):
 		return outinfo
 
 	@classmethod
-	def create_thumbnail(cls, src, dest, size, mtime, moreinfo=None):
+	def create_thumbnail(cls, src, dest, size, moreinfo=None):
 		import PIL.Image
 
 		try:
@@ -264,8 +278,7 @@ class PilBackend(object):
 		except IOError:
 			return None
 
-		uri = _any2uri(src)
-		outinfo = cls._pnginfo(uri, mtime, moreinfo)
+		outinfo = cls._pnginfo(moreinfo)
 		outinfo.add_text(KEY_WIDTH, str(img.size[0]))
 		outinfo.add_text(KEY_HEIGHT, str(img.size[1]))
 
@@ -280,10 +293,10 @@ class PilBackend(object):
 		return dest
 
 	@classmethod
-	def create_fail(cls, src, dest, size, mtime, moreinfo=None):
+	def create_fail(cls, dest, moreinfo=None):
 		import PIL.Image
 
-		outinfo = cls._pnginfo(_any2uri(src), _any2mtime(src, mtime), moreinfo)
+		outinfo = cls._pnginfo(moreinfo)
 
 		img = PIL.Image.new('RGBA', (1, 1))
 		img.save(dest, pnginfo=outinfo)
@@ -304,10 +317,9 @@ class PilBackend(object):
 		return res
 
 	@classmethod
-	def update_metadata(cls, src, dest, mtime=None, moreinfo=None):
+	def update_metadata(cls, dest, moreinfo=None):
 		img = PILI.open(dest)
-		mtime = _any2mtime(src, mtime)
-		outinfo = cls._pnginfo(_any2uri(src), mtime, moreinfo)
+		outinfo = cls._pnginfo(moreinfo)
 		img.save(dest, pnginfo=outinfo)
 		img.close()
 
@@ -337,20 +349,16 @@ def create_thumbnail(src, size, moreinfo=None, use_fail_appname=None):
 	"""
 
 	size = _any2size(size)[0]
-	dest = build_thumbnail_path(src, size)
-	mtime = _any2mtime(src)
 	filesize = os.path.getsize(src)
+	dest = build_thumbnail_path(src, size)
 
-	if moreinfo is None:
-		moreinfo = {}
-	else:
-		moreinfo = dict(moreinfo)
+	moreinfo = _info_dict(moreinfo, src=src)
 	moreinfo[KEY_SIZE] = str(filesize)
 
 	if not os.path.isdir(os.path.dirname(dest)):
 		os.makedirs(os.path.dirname(dest), 0o700)
 
-	if get_backend().create_thumbnail(src, dest, size, mtime, moreinfo):
+	if get_backend().create_thumbnail(src, dest, size, moreinfo):
 		os.chmod(dest, 0o600)
 		return dest
 
