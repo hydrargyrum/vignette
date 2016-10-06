@@ -41,12 +41,13 @@ Examples
 ========
 
 Just ask for thumbnails of local images, automatically creating them if necessary::
+
   import vignette
   thumb_image = vignette.get_thumbnail('/my/file.jpg')
   local_app_display(thumb_image)
 
 Ask for a thumbnail or generate it manually, for example a web-browser generating pages previews,
-that this module can't do himself::
+that this module can't do itself::
 
   import vignette
   orig_url = 'http://example.com/file.pdf'

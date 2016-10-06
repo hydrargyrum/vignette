@@ -30,7 +30,7 @@ Just ask for thumbnails of local images, automatically creating them if necessar
   local_app_display(thumb_image)
 ```
 
-Ask for a thumbnail or generate it manually, for example a web-browser generating pages previews, that this module can't do himself:
+Ask for a thumbnail or generate it manually, for example a web-browser generating pages previews, that this module can't do itself:
 
 ```
   import vignette
