@@ -69,9 +69,10 @@ that this module can't do himself::
 """
 
 
-import md5
+import hashlib
 import os
 import re
+import sys
 import tempfile
 
 
@@ -90,6 +91,9 @@ __all__ = (
 	'KEY_DOC_PAGES',
 	'KEY_MOVIE_LENGTH',
 )
+
+if sys.version_info.major == 2:
+	bytes, str = str, unicode
 
 
 KEY_URI = 'Thumb::URI'
@@ -143,7 +147,11 @@ def _thumb_path_prefix():
 
 
 def hash_name(src):
-	return md5.new(_any2uri(src)).hexdigest()
+	uri = _any2uri(src)
+	if isinstance(uri, str):
+		uri = uri.encode('utf-8')
+
+	return hashlib.md5(uri).hexdigest()
 
 
 def is_thumbnail_failed(src, appname, mtime=None):
@@ -189,7 +197,7 @@ def put_thumbnail(src, size, thumb=None, mtime=None, moreinfo=None):
 		shutil.copyfile(thumb, dest)
 
 	get_backend().update_metadata(src, dest, mtime, moreinfo)
-	os.chmod(dest, 0600)
+	os.chmod(dest, 0o600)
 
 	return dest
 
@@ -209,12 +217,12 @@ def put_fail(src, appname, mtime=None, moreinfo=None):
 
 	prefix = os.path.join(_thumb_path_prefix(), 'fail', appname)
 	if not os.path.isdir(prefix):
-		os.makedirs(prefix, 0700)
+		os.makedirs(prefix, 0o700)
 
 	md5uri = hash_name(src)
 	dest = os.path.join(prefix, '%s.png' % md5uri)
 	get_backend().create_fail(src, dest, mtime, moreinfo)
-	os.chmod(dest, 0600)
+	os.chmod(dest, 0o600)
 
 	return dest
 
@@ -264,6 +272,7 @@ class PilBackend(object):
 		os.close(tmppath[0])
 
 		img.save(tmppath[1], pnginfo=outinfo)
+		img.close()
 		os.rename(tmppath[1], dest)
 		return dest
 
@@ -275,6 +284,7 @@ class PilBackend(object):
 
 		img = PIL.Image.new('RGBA', (1, 1))
 		img.save(dest, pnginfo=outinfo)
+		img.close()
 
 	@staticmethod
 	def get_info(path):
@@ -283,10 +293,12 @@ class PilBackend(object):
 		img = PIL.Image.open(path)
 		mtime = int(img.info[KEY_MTIME])
 
-		return {
+		res = {
 			'mtime': mtime,
 			'uri': img.info[KEY_URI],
 		}
+		img.close()
+		return res
 
 	@classmethod
 	def update_metadata(cls, src, dest, mtime=None, moreinfo=None):
@@ -294,6 +306,7 @@ class PilBackend(object):
 		mtime = _any2mtime(src, mtime)
 		outinfo = cls._pnginfo(_any2uri(src), mtime, moreinfo)
 		img.save(dest, pnginfo=outinfo)
+		img.close()
 
 
 BACKENDS = [PilBackend()]
@@ -332,10 +345,10 @@ def create_thumbnail(src, size, moreinfo=None, use_fail_appname=None):
 	moreinfo[KEY_SIZE] = str(filesize)
 
 	if not os.path.isdir(os.path.dirname(dest)):
-		os.makedirs(os.path.dirname(dest), 0700)
+		os.makedirs(os.path.dirname(dest), 0o700)
 
 	if get_backend().create_thumbnail(src, dest, size, mtime, moreinfo):
-		os.chmod(dest, 0600)
+		os.chmod(dest, 0o600)
 		return dest
 
 	if use_fail_appname is not None:

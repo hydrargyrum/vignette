@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-import md5
+import hashlib
 import os
 import shutil
 import tempfile
@@ -20,8 +20,8 @@ class ThumbnailTests(unittest.TestCase):
 		shutil.rmtree(self.dir)
 
 	def test_hash(self):
-		uri = 'file://%s' % self.filename
-		dest = os.path.join(self.dir, 'thumbnails', 'large', md5.new(uri).hexdigest()) + '.png'
+		uri = u'file://%s' % self.filename
+		dest = os.path.join(self.dir, 'thumbnails', 'large', hashlib.md5(uri.encode('utf-8')).hexdigest()) + '.png'
 		self.assertEqual(dest, thumbnail.build_thumbnail_path(self.filename, 'large'))
 
 	def test_basic(self):
