@@ -41,24 +41,26 @@ Examples
 ========
 
 Just ask for thumbnails of local images, automatically creating them if necessary::
-  thumb_image = get_thumbnail('/my/file.jpg')
+  import vignette
+  thumb_image = vignette.get_thumbnail('/my/file.jpg')
   local_app_display(thumb_image)
 
 Ask for a thumbnail or generate it manually, for example a web-browser generating pages previews,
 that this module can't do himself::
 
+  import vignette
   orig_url = 'http://example.com/file.pdf'
-  thumb_image = try_get_thumbnail(orig_url, mtime=0) # mtime is not used in this example
+  thumb_image = vignette.try_get_thumbnail(orig_url, mtime=0) # mtime is not used in this example
 
   if not thumb_image:
-    thumb_image = build_thumbnail_path(orig_url, 'large')
+    thumb_image = vignette.build_thumbnail_path(orig_url, 'large')
     try:
       local_app_make_preview(orig_url, thumb_image)
     except NetworkError:
-      put_fail(orig_url, 'mybrowser-1.0', mtime=0)
+      vignette.put_fail(orig_url, 'mybrowser-1.0', mtime=0)
     else:
-      thumb_image = put_thumbnail(orig_url, 'large', mtime=0)
-    if is_thumbnail_failed(orig_url):
+      thumb_image = vignette.put_thumbnail(orig_url, 'large', mtime=0)
+    if vignette.is_thumbnail_failed(orig_url):
       thumb_image = 'error.png'
 
   local_app_display(thumb_image)
