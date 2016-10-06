@@ -36,7 +36,16 @@ class ThumbnailTests(unittest.TestCase):
 
 		self.assertEqual(dest, thumbnail.try_get_thumbnail(self.filename, 'large'))
 
-	def test_reuse(self):
+	def test_reuse_thumbnail(self):
+		dest = thumbnail.get_thumbnail(self.filename, 'large')
+		assert dest
+		st = os.stat(dest)
+		self.assertEqual(dest, thumbnail.get_thumbnail(self.filename, 'large'))
+		self.assertEqual(st, os.stat(dest))
+		self.assertEqual(dest, thumbnail.create_thumbnail(self.filename, 'large'))
+		self.assertNotEqual(st, os.stat(dest))
+
+	def test_direct_thumbnail(self):
 		dest = thumbnail.get_thumbnail(self.filename, 'large')
 		assert dest
 		assert os.path.isfile(dest)
@@ -66,6 +75,29 @@ class ThumbnailTests(unittest.TestCase):
 		self.assertEqual(dest, thumbnail.try_get_thumbnail(self.filename, 'normal'))
 		self.assertIsNone(thumbnail.try_get_thumbnail(self.filename, 'large'))
 		self.assertEqual(dest, thumbnail.try_get_thumbnail(self.filename))
+
+	def test_fail(self):
+		self.filename = os.path.join(self.dir, 'failing.txt')
+		open(self.filename, 'w').close()
+
+		self.assertIsNone(thumbnail.get_thumbnail(self.filename, 'large'))
+		assert not os.path.exists(os.path.join(self.dir, 'thumbnails', 'fail'))
+		assert not thumbnail.is_thumbnail_failed(self.filename, 'foo')
+
+		self.assertIsNone(thumbnail.get_thumbnail(self.filename, 'large', use_fail_appname='foo'))
+		assert os.path.exists(os.path.join(self.dir, 'thumbnails', 'fail', 'foo'))
+		assert thumbnail.is_thumbnail_failed(self.filename, 'foo')
+		assert not thumbnail.is_thumbnail_failed(self.filename, 'bar')
+
+	def test_fail_mtime_validity(self):
+		self.filename = os.path.join(self.dir, 'failing.txt')
+		open(self.filename, 'w').close()
+
+		self.assertIsNone(thumbnail.get_thumbnail(self.filename, 'large', use_fail_appname='foo'))
+		assert thumbnail.is_thumbnail_failed(self.filename, 'foo')
+
+		os.utime(self.filename, (0, 0))
+		assert not thumbnail.is_thumbnail_failed(self.filename, 'foo')
 
 
 if __name__ == '__main__':

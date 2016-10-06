@@ -148,7 +148,7 @@ def hash_name(src):
 	return md5.new(_any2uri(src)).hexdigest()
 
 
-def is_thumbnail_failed(src, appname):
+def is_thumbnail_failed(src, appname, mtime=None):
 	"""Is the thumbnail for `name` failed with `appname`?
 
 	:param src: the URL or path of the source file.
@@ -157,8 +157,11 @@ def is_thumbnail_failed(src, appname):
 
 	prefix = _thumb_path_prefix()
 	apppath = os.path.join(prefix, 'fail', appname)
+	uri = _any2uri(src)
+	mtime = _any2mtime(src, mtime)
 	md5uri = hash_name(src)
-	return os.path.exists(os.path.join(apppath, '%s.png' % md5uri))
+	thumb = os.path.join(apppath, '%s.png' % md5uri)
+	return os.path.exists(thumb) and is_thumbnail_valid(thumb, uri, mtime)
 
 
 def put_thumbnail(src, size, thumb=None, mtime=None, moreinfo=None):
@@ -234,7 +237,10 @@ class PilBackend(object):
 
 	@classmethod
 	def create_thumbnail(cls, src, dest, size, mtime, moreinfo=None):
-		img = PILI.open(src)
+		try:
+			img = PILI.open(src)
+		except IOError:
+			return None
 
 		uri = _any2uri(src)
 		outinfo = cls._pnginfo(uri, mtime, moreinfo)
@@ -386,8 +392,10 @@ def get_thumbnail(src, size=None, use_fail_appname=None):
 	if thumb is not None:
 		return thumb
 
-	if use_fail_appname is not None and is_thumbnail_failed(src, use_fail_appname):
-		return None
+	if use_fail_appname is not None:
+		mtime = _any2mtime(src)
+		if is_thumbnail_failed(src, use_fail_appname, mtime):
+			return None
 
 	return create_thumbnail(src, size, use_fail_appname=use_fail_appname)
 
