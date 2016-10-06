@@ -436,8 +436,14 @@ def get_thumbnail(src, size=None, use_fail_appname=None):
 		if is_thumbnail_failed(src, use_fail_appname, mtime):
 			return None
 
+	if size is None:
+		size = 'large'
 	return create_thumbnail(src, size, use_fail_appname=use_fail_appname)
 
 
-if __name__ == '__main__':
+def main():
 	print(get_thumbnail(sys.argv[1]))
+
+
+if __name__ == '__main__':
+	main()
