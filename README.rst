@@ -1,10 +1,12 @@
-# Vignette
+Vignette
+========
 
-Vignette is a Python lib for creating and fetching image thumbnails following the [Freedesktop specification](http://specifications.freedesktop.org/thumbnail-spec/thumbnail-spec-latest.html).
+Vignette is a Python lib for creating and fetching image thumbnails following the `Freedesktop specification <http://specifications.freedesktop.org/thumbnail-spec/thumbnail-spec-latest.html>`_.
 
-In a nutshell, the specification says that thumbnails should be 128x128 or 256x256 and should be cached in ~/.cache/thumbnails. If a thumbnail has already been generated for an URL, it can be fetched from the cache first instead of generating a new one.
+In a nutshell, the specification says that thumbnails should be 128x128 or 256x256 and should be cached in `~/.cache/thumbnails`. If a thumbnail has already been generated for an URL, it can be fetched from the cache first instead of generating a new one.
 
-# Documentation
+Documentation
+=============
 
 The Python module is full of docstrings, but here's a short documentation.
 
@@ -21,18 +23,18 @@ It has functions that have side effects, which write thumbnails, or "fail-files"
 * put_thumbnail
 * put_fail
 
-## Examples
+Examples
+--------
 
-Just ask for thumbnails of local images, automatically creating them if necessary:
-```
+Just ask for thumbnails of local images, automatically creating them if necessary::
+
   import vignette
   thumb_image = vignette.get_thumbnail('/my/file.jpg')
   local_app_display(thumb_image)
-```
 
-Ask for a thumbnail or generate it manually, for example a web-browser generating pages previews, that this module can't do itself:
 
-```
+Ask for a thumbnail or generate it manually, for example a web-browser generating pages previews, that this module can't do itself::
+
   import vignette
   orig_url = 'http://example.com/file.pdf'
   thumb_image = vignette.try_get_thumbnail(orig_url, mtime=0) # mtime is not used in this example
@@ -49,18 +51,20 @@ Ask for a thumbnail or generate it manually, for example a web-browser generatin
       thumb_image = 'error.png'
 
   local_app_display(thumb_image)
-```
 
-# Requirements
+Requirements
+============
 
 Vignette works with both Python 2 and Python 3.
 
 Vignette requires the Python Imaging Library (PIL) for now but can use other image backends as plugins.
 
-# License
+License
+=======
 
-Vignette is licensed under the [WTFPLv2](http://wtfpl.net).
+Vignette is licensed under the `WTFPLv2 <http://wtfpl.net>`_.
 
-# Version
+Version
+=======
 
-Vignette is currently at version 3.0.0 and uses [Semantic Versioning](http://semver.org/).
+Vignette is currently at version 3.0.0 and uses `Semantic Versioning <http://semver.org/>`_.
