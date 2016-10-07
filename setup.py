@@ -5,10 +5,12 @@ from setuptools import setup, find_packages
 
 import glob
 
+with open('VERSION.txt') as fd:
+	version = fd.read().strip()
 
 setup(
 	name='vignette',
-	version='3.0.0',
+	version=version,
 
 	description='Library to create FreeDesktop-compatible thumbnails',
 	url='https://github.com/hydrargyrum/vignette',
@@ -37,6 +39,10 @@ setup(
 		'Programming Language :: Python :: 3.6',
 	],
 	keywords='freedesktop xdg image thumbnail',
+
+	extras_require={
+		'PIL': ['PIL'],
+	},
 
 	zip_safe=True,
 	packages=find_packages(),
