@@ -1,0 +1,6 @@
+dist
+build
+vignette.egg-info
+*.pyc
+__pycache__
+docs/_build
