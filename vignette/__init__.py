@@ -158,6 +158,12 @@ def _info_dict(d, mtime=None, src=None):
 	return d
 
 
+def _mkstemp(dest):
+	tmp = tempfile.mkstemp(suffix='.png', dir=os.path.dirname(dest))
+	os.close(tmp[0])
+	return tmp[1]
+
+
 def _thumb_path_prefix():
 	xdgcache = os.getenv('XDG_CACHE_HOME', os.path.expanduser('~/.cache'))
 	return os.path.join(xdgcache, 'thumbnails')
@@ -284,12 +290,11 @@ class PilBackend(object):
 
 		img.thumbnail((size, size), PIL.Image.ANTIALIAS)
 
-		tmppath = tempfile.mkstemp(suffix='.png', dir=os.path.dirname(dest))
-		os.close(tmppath[0])
+		tmppath = _mkstemp(dest)
 
-		img.save(tmppath[1], pnginfo=outinfo)
+		img.save(tmppath, pnginfo=outinfo)
 		img.close()
-		os.rename(tmppath[1], dest)
+		os.rename(tmppath, dest)
 		return dest
 
 	@classmethod
