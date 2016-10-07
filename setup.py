@@ -13,6 +13,7 @@ setup(
 	description='Library to create FreeDesktop-compatible thumbnails',
 	url='https://github.com/hydrargyrum/vignette',
 	author='Hg',
+	author_email='dev+pip@indigo.re',
 	license='WTFPLv2',
 	classifiers=[
 		'Development Status :: 4 - Beta',
