@@ -329,7 +329,70 @@ class PilBackend(object):
 		img.close()
 
 
-BACKENDS = [PilBackend()]
+class MagickBackend(object):
+	def is_available(self):
+		try:
+			import PythonMagick
+		except ImportError:
+			return False
+		self.mod = PythonMagick
+		return True
+
+	@staticmethod
+	def setattributes(img, moreinfo):
+		for k in moreinfo or {}:
+			v = str(moreinfo[k]).encode('utf-8')
+			img.attribute(k, v)
+
+	def create_thumbnail(self, src, dest, size, moreinfo=None):
+		try:
+			img = self.mod.Image(src)
+		except RuntimeError:
+			return
+
+		geom = self.mod.Geometry(size, size)
+		img.resize(geom)
+		self.setattributes(img, moreinfo)
+
+		tmp = _mkstemp(dest)
+		img.write(tmp)
+		os.rename(tmp, dest)
+		return dest
+
+	def update_metadata(self, dest, moreinfo=None):
+		try:
+			img = self.mod.Image(src)
+		except RuntimeError:
+			return
+		self.setattributes(img, moreinfo)
+
+		img.write(dest)
+		return dest
+
+	def create_fail(self, dest, moreinfo=None):
+		geom = self.mod.Geometry(1, 1)
+		color = self.mod.Color()
+
+		img = self.mod.Image(geom, color)
+		self.setattributes(img, moreinfo)
+
+		tmp = _mkstemp(dest)
+		img.write(tmp)
+		os.rename(tmp, dest)
+
+	def get_info(self, path):
+		try:
+			img = self.mod.Image(path)
+		except RuntimeError:
+			return
+
+		return {
+			'mtime': int(img.attribute(KEY_MTIME) or 0),
+			'uri': img.attribute(KEY_URI),
+		}
+
+
+BACKENDS = [MagickBackend(), PilBackend()]
 
 def get_backend():
 	for backend in BACKENDS:

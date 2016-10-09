@@ -77,7 +77,7 @@ class ThumbnailTests(unittest.TestCase):
 		self.assertEqual(dest, vignette.try_get_thumbnail(self.filename))
 
 	def test_fail(self):
-		self.filename = os.path.join(self.dir, 'failing.txt')
+		self.filename = os.path.join(self.dir, 'empty')
 		open(self.filename, 'w').close()
 
 		self.assertIsNone(vignette.get_thumbnail(self.filename, 'large'))
@@ -90,7 +90,7 @@ class ThumbnailTests(unittest.TestCase):
 		assert not vignette.is_thumbnail_failed(self.filename, 'bar')
 
 	def test_fail_mtime_validity(self):
-		self.filename = os.path.join(self.dir, 'failing.txt')
+		self.filename = os.path.join(self.dir, 'empty')
 		open(self.filename, 'w').close()
 
 		self.assertIsNone(vignette.get_thumbnail(self.filename, 'large', use_fail_appname='foo'))
