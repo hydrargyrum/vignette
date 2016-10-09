@@ -80,6 +80,11 @@ import shutil
 import sys
 import tempfile
 
+if sys.version_info.major > 2:
+	from urllib.request import pathname2url
+else:
+	from urllib import pathname2url
+
 
 __all__ = (
 	'get_thumbnail',
@@ -138,7 +143,7 @@ def _any2uri(sth):
 	if URI_RE.match(sth):
 		return sth
 	else:
-		return 'file://' + os.path.abspath(sth)
+		return 'file://' + pathname2url(os.path.abspath(sth))
 
 
 def _any2mtime(origname, mtime=None):
