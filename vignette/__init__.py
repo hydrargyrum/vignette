@@ -114,19 +114,19 @@ KEY_MOVIE_LENGTH = 'Thumb::Movie::Length'
 
 
 def _any2size(size):
-	if size in ('large', 256, '256'):
-		return (256, 'large')
-	elif size in ('normal', 128, '128'):
+	if size in ('normal', 128, '128'):
 		return (128, 'normal')
-	else:
-		try:
-			if 0 < int(size) <= 128:
-				return (128, 'normal')
-		except ValueError:
-			pass
+	elif size in ('large', 256, '256'):
+		return (256, 'large')
+	elif 0 < size <= 128:
+		return 128
+	elif 128 < size <= 256:
+		return 256
+
+	raise ValueError('unsupported size: %r' % size)
 
 
-_URI_RE = re.compile(r'[a-zA-Z0-9.+-]+:')
+URI_RE = re.compile(r'[a-z][a-z0-9.+-]*:', re.I)
 
 
 def _any2uri(sth):
@@ -135,7 +135,7 @@ def _any2uri(sth):
 	If it's already an URI, return it, else return a file:// URL of it
 	"""
 
-	if _URI_RE.match(sth):
+	if URI_RE.match(sth):
 		return sth
 	else:
 		return 'file://' + os.path.abspath(sth)
@@ -149,10 +149,7 @@ def _any2mtime(origname, mtime=None):
 
 
 def _info_dict(d, mtime=None, src=None):
-	if d is None:
-		d = {}
-	else:
-		d = dict(d)
+	d = dict(d or {})
 
 	if mtime is not None or src is not None:
 		d.setdefault(KEY_MTIME, str(_any2mtime(src, mtime)))
@@ -192,6 +189,7 @@ def makedirs():
 
 def _thumb_path_prefix():
 	xdgcache = os.getenv('XDG_CACHE_HOME', os.path.expanduser('~/.cache'))
+	xdgcache = os.path.normpath(xdgcache)
 	return os.path.join(xdgcache, 'thumbnails')
 
 
@@ -280,6 +278,7 @@ def put_fail(src, appname, mtime=None, moreinfo=None):
 	              has to be a local file and its mtime will be read.
 	:param moreinfo: additional optional key/values to store in the thumbnail file.
 	:type moreinfo: dict
+	:returns: path of the failed info file
 	"""
 
 	prefix = os.path.join(_thumb_path_prefix(), 'fail', appname)
@@ -290,9 +289,7 @@ def put_fail(src, appname, mtime=None, moreinfo=None):
 	dest = os.path.join(prefix, '%s.png' % md5uri)
 
 	moreinfo = _info_dict(moreinfo, mtime=mtime, src=src)
-	get_backend().create_fail(dest, moreinfo)
-
-	return dest
+	return get_backend().create_fail(dest, moreinfo)
 
 
 class PilBackend(object):
@@ -344,6 +341,7 @@ class PilBackend(object):
 		img.save(tmp, pnginfo=outinfo)
 		img.close()
 		os.rename(tmp, dest)
+		return dest
 
 	def get_info(self, path):
 		img = self.mod.open(path)
@@ -364,15 +362,17 @@ class PilBackend(object):
 		img.save(tmp, pnginfo=outinfo)
 		img.close()
 		os.rename(tmp, dest)
+		return dest
 
 
 class MagickBackend(object):
-	def is_available(self):
+	@classmethod
+	def is_available(cls):
 		try:
 			import PythonMagick
 		except ImportError:
 			return False
-		self.mod = PythonMagick
+		cls.mod = PythonMagick
 		return True
 
 	@staticmethod
@@ -418,6 +418,7 @@ class MagickBackend(object):
 		tmp = _mkstemp(dest)
 		img.write(tmp)
 		os.rename(tmp, dest)
+		return dest
 
 	def get_info(self, path):
 		try:
