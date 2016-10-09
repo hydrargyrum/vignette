@@ -41,7 +41,8 @@ setup(
 	keywords='freedesktop xdg image thumbnail',
 
 	extras_require={
-		'PIL': ['PIL'],
+		'Pillow': ['Pillow'],
+		'PythonMagick': ['PythonMagick'],
 	},
 
 	zip_safe=True,
