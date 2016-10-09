@@ -75,6 +75,7 @@ that this module can't do itself::
 import hashlib
 import os
 import re
+import shutil
 import sys
 import tempfile
 
@@ -254,20 +255,20 @@ def put_fail(src, appname, mtime=None, moreinfo=None):
 
 
 class PilBackend(object):
-	@staticmethod
-	def is_available():
+	@classmethod
+	def is_available(cls):
 		try:
 			import PIL.Image
 			import PIL.PngImagePlugin
 		except ImportError:
 			return False
+
+		cls.mod = PIL.Image
+		cls.png = PIL.PngImagePlugin
 		return True
 
-	@staticmethod
-	def _pnginfo(moreinfo=None):
-		import PIL.PngImagePlugin
-
-		outinfo = PIL.PngImagePlugin.PngInfo()
+	def _pnginfo(self, moreinfo=None):
+		outinfo = self.png.PngInfo()
 
 		if moreinfo:
 			for k in moreinfo:
@@ -275,20 +276,17 @@ class PilBackend(object):
 
 		return outinfo
 
-	@classmethod
-	def create_thumbnail(cls, src, dest, size, moreinfo=None):
-		import PIL.Image
-
+	def create_thumbnail(self, src, dest, size, moreinfo=None):
 		try:
-			img = PIL.Image.open(src)
+			img = self.mod.open(src)
 		except IOError:
 			return None
 
-		outinfo = cls._pnginfo(moreinfo)
+		outinfo = self._pnginfo(moreinfo)
 		outinfo.add_text(KEY_WIDTH, str(img.size[0]))
 		outinfo.add_text(KEY_HEIGHT, str(img.size[1]))
 
-		img.thumbnail((size, size), PIL.Image.ANTIALIAS)
+		img.thumbnail((size, size), self.mod.ANTIALIAS)
 
 		tmppath = _mkstemp(dest)
 
@@ -297,21 +295,15 @@ class PilBackend(object):
 		os.rename(tmppath, dest)
 		return dest
 
-	@classmethod
-	def create_fail(cls, dest, moreinfo=None):
-		import PIL.Image
+	def create_fail(self, dest, moreinfo=None):
+		outinfo = self._pnginfo(moreinfo)
 
-		outinfo = cls._pnginfo(moreinfo)
-
-		img = PIL.Image.new('RGBA', (1, 1))
+		img = self.mod.new('RGBA', (1, 1))
 		img.save(dest, pnginfo=outinfo)
 		img.close()
 
-	@staticmethod
-	def get_info(path):
-		import PIL.Image
-
-		img = PIL.Image.open(path)
+	def get_info(self, path):
+		img = self.mod.open(path)
 		mtime = int(img.info[KEY_MTIME])
 
 		res = {
@@ -321,10 +313,9 @@ class PilBackend(object):
 		img.close()
 		return res
 
-	@classmethod
-	def update_metadata(cls, dest, moreinfo=None):
-		img = PILI.open(dest)
-		outinfo = cls._pnginfo(moreinfo)
+	def update_metadata(self, dest, moreinfo=None):
+		img = self.mod.open(dest)
+		outinfo = self._pnginfo(moreinfo)
 		img.save(dest, pnginfo=outinfo)
 		img.close()
 
@@ -361,7 +352,7 @@ class MagickBackend(object):
 
 	def update_metadata(self, dest, moreinfo=None):
 		try:
-			img = self.mod.Image(src)
+			img = self.mod.Image(dest)
 		except RuntimeError:
 			return
 		self.setattributes(img, moreinfo)
