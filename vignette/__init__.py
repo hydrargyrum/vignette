@@ -160,9 +160,10 @@ def _info_dict(d, mtime=None, src=None):
 
 
 def _mkstemp(dest):
-	tmp = tempfile.mkstemp(suffix='.png', dir=os.path.dirname(dest))
-	os.close(tmp[0])
-	return tmp[1]
+	fd, path = tempfile.mkstemp(suffix='.png', dir=os.path.dirname(dest))
+	os.close(fd)
+	os.chmod(path, 0o600)
+	return path
 
 
 def _thumb_path_prefix():
@@ -299,8 +300,10 @@ class PilBackend(object):
 		outinfo = self._pnginfo(moreinfo)
 
 		img = self.mod.new('RGBA', (1, 1))
-		img.save(dest, pnginfo=outinfo)
+		tmp = _mkstemp(dest)
+		img.save(tmp, pnginfo=outinfo)
 		img.close()
+		os.rename(tmp, dest)
 
 	def get_info(self, path):
 		img = self.mod.open(path)
@@ -316,8 +319,11 @@ class PilBackend(object):
 	def update_metadata(self, dest, moreinfo=None):
 		img = self.mod.open(dest)
 		outinfo = self._pnginfo(moreinfo)
-		img.save(dest, pnginfo=outinfo)
+
+		tmp = _mkstemp(dest)
+		img.save(tmp, pnginfo=outinfo)
 		img.close()
+		os.rename(tmp, dest)
 
 
 class MagickBackend(object):
@@ -357,7 +363,9 @@ class MagickBackend(object):
 			return
 		self.setattributes(img, moreinfo)
 
-		img.write(dest)
+		tmp = _mkstemp(dest)
+		img.write(tmp)
+		os.rename(tmp, dest)
 		return dest
 
 	def create_fail(self, dest, moreinfo=None):
