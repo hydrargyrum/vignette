@@ -99,6 +99,24 @@ class ThumbnailTests(unittest.TestCase):
 		os.utime(self.filename, (0, 0))
 		assert not vignette.is_thumbnail_failed(self.filename, 'foo')
 
+	def test_put_thumbnail(self):
+		uri = 'http://example.com'
+		tmp = vignette.create_temp('large')
+		shutil.copyfile(self.filename, tmp)
+		vignette.put_thumbnail(uri, 'large', tmp, mtime=42)
+		assert vignette.try_get_thumbnail(uri, 'large', mtime=42)
+		self.assertIsNone(vignette.try_get_thumbnail(uri, 'large', mtime=1))
+
+	def test_put_fail(self):
+		vignette.put_fail(self.filename, 'foo')
+		assert vignette.is_thumbnail_failed(self.filename, 'foo')
+		assert not vignette.is_thumbnail_failed(self.filename, 'bar')
+
+		self.assertIsNone(vignette.get_thumbnail(self.filename, use_fail_appname='foo'))
+		dest = vignette.get_thumbnail(self.filename, use_fail_appname='bar')
+		assert dest
+		self.assertEqual(dest, vignette.get_thumbnail(self.filename, use_fail_appname='foo'))
+
 
 if __name__ == '__main__':
 	unittest.main()
