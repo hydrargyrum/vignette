@@ -1,14 +1,25 @@
 Vignette
 ========
 
-Vignette is a Python lib for creating and fetching image thumbnails following the `Freedesktop specification <http://specifications.freedesktop.org/thumbnail-spec/thumbnail-spec-latest.html>`_.
+Vignette is a Python library to create and manage thumbnails following the FreeDesktop standard.
 
-In a nutshell, the specification says that thumbnails should be 128x128 or 256x256 and should be cached in `~/.cache/thumbnails`. If a thumbnail has already been generated for an URL, it can be fetched from the cache first instead of generating a new one.
+Thumbnails are stored in a shared directory so other apps following the standard can reuse
+them without having to generate their own thumbnails.
+
+Vignette can typically be used in file managers, image browsers, etc.
+
+Thumbnails are not limited to image files on disk but can be generated for other file types,
+for example videos or documents but also for any URL, for example a web browser could store
+thumbnails for recently visited pages or bookmarks.
+
+Vignette by itself can only generate thumbnails for local image files but can retrieve
+thumbnail for any file or URL, if another app generated a thumbnail for it. An app can also
+generate a thumbnail by its own means and use vignette to push that thumbnail to the store.
 
 Documentation
 =============
 
-The Python module is full of docstrings, but here's a short documentation.
+The documentation can be [read online](https://vignette.readthedocs.io/).
 
 This library has querying functions, that do not generate thumbnails, and can be used with files or URLs, that can be non-images:
 
@@ -29,6 +40,7 @@ Examples
 Just ask for thumbnails of local images, automatically creating them if necessary::
 
   import vignette
+
   thumb_image = vignette.get_thumbnail('/my/file.jpg')
   local_app_display(thumb_image)
 
@@ -36,6 +48,7 @@ Just ask for thumbnails of local images, automatically creating them if necessar
 Ask for a thumbnail or generate it manually, for example a web-browser generating pages previews, that this module can't do itself::
 
   import vignette
+
   orig_url = 'http://example.com/file.pdf'
   thumb_image = vignette.try_get_thumbnail(orig_url, mtime=0) # mtime is not used in this example
 
