@@ -56,9 +56,13 @@ These functions are used to find if a thumbnail exists or find info about a thum
 They do not generate thumbnails or "fail-files", and can be used with files or URLs, that can
 refer to non-images:
 
-* :any:`build_thumbnail_path`
 * :any:`try_get_thumbnail`
+* :any:`build_thumbnail_path`
 * :any:`is_thumbnail_failed`
+
+These functions generally file paths or URLs as ``src`` argument. If it is an URL, the
+``mtime`` argument must be specified, because `vignette` can only determine the mtime of
+local files.
 
 Generating
 ----------
@@ -85,8 +89,25 @@ retrieve them afterwards with :any:`try_get_thumbnail`, or to let other apps fin
 * :any:`put_thumbnail`
 * :any:`put_fail`
 
-Note: the module's functions take care of putting the two mandatory attributes (URI and MTime)
-in the thumbnail file metadata.
+These functions generally file paths or URLs as ``src`` argument. If it is an URL, the
+``mtime`` argument must be specified, because `vignette` can only determine the mtime of
+local files.
+
+General notes
+=============
+
+MTime
+-----
+
+The last-modification time of a source file to create a thumbnail for is very important in the
+standard, since it allows to easily determine if a thumbnail is still relevant.
+
+A thumbnail is identified by a source URL and the last-modification time of the source (`mtime`
+for short). If a thumbnails exists for the source URL but the source's `mtime` is different,
+the thumbnail is considered obsolete and simply ignored.
+
+Many functions of `vignette` take a ``mtime`` argument that is optional if the ``src`` argument
+refers to a local file, but mandatory if it is an URL.
 
 Examples
 ========
@@ -250,10 +271,20 @@ def _mkstemp(dest):
 
 
 def create_temp(size):
-	"""Create a temporary file in the parent directory.
+	"""Create a temporary file in the thumbnail cache directory.
 
-	Return the name of a file with a random name (with ".png" suffix) in the parent directory
-	of `dest`. Should be used by backends to provide UNIX atomic-rename semantics.
+	Return a file path with a random name (with "``.png``" suffix) in the cache directory
+	for `size`. Should be used by backends to provide UNIX atomic-rename semantics.
+
+	Can also be used by apps generating thumbnails on their own (typically for non-image
+	files like PDFs), to then call :any:`put_thumbnail`.
+
+	As with function :any:`tempfile.mkstemp`, the returned file path exists but is guaranteed
+	to be new, so the file can be written to safely.
+
+	:param size: desired size of thumbnail. Can be any of 'large', 256 for large
+	             thumbnails or 'normal', 128 for small thumbnails.
+	:rtype: str
 	"""
 	size = _any2size(size)[1]
 	dir = os.path.join(_thumb_path_prefix(), size)
@@ -285,10 +316,24 @@ def hash_name(src):
 
 
 def is_thumbnail_failed(src, appname, mtime=None):
-	"""Is the thumbnail for `name` failed with `appname`?
+	"""Determine whether there exists a fail-file or not.
+
+	If a fail-file was generated for file `src` by app `appname`, but the stored mtime in the
+	fail-file is different than the `mtime` argument, the fail-file is considered obsolete
+	so it is ignored and `False` is returned.
+
+	This function does not check if a valid thumbnail exists for `src`, it only verifies if a
+	fail-file was created for `src` by `appname`.
+
+	See :any:`try_get_thumbnail` for finding if a valid thumbnail exists.
 
 	:param src: the URL or path of the source file.
 	:type src: str
+	:param appname: name of the app
+	:type appname: str
+	:param mtime: mtime of the source file. Optional only if `src` is a local file.
+	:type mtime: int
+	:rtype: bool
 	"""
 
 	prefix = _thumb_path_prefix()
@@ -316,8 +361,8 @@ def put_thumbnail(src, size, thumb, mtime=None, moreinfo=None):
 	             thumbnails or 'normal', 128 for small thumbnails.
 	:param thumb: path of the thumbnail created by the app. This file will be moved to the
 	              target. It is advised to use :any:`create_temp` for obtaining a file path.
-	:param mtime: the modification time of the file thumbnailed. If `mtime` is None, `src`
-	              has to be a local file and its mtime will be read.
+	:param mtime: mtime of the source file. Optional only if `src` is a local file.
+	:type mtime: int
 	:param moreinfo: additional optional key/values to store in the thumbnail file.
 	:type moreinfo: dict
 	:returns: the path where the thumbnail has been moved.
@@ -355,10 +400,10 @@ def put_fail(src, appname, mtime=None, moreinfo=None):
 	and it fails, the app should use this function to indicate the generation failed and it
 	should not retry (unless the file has been modified).
 
-	:param src: the URL or path of the file thumbnailed.
+	:param src: the URL or path of the source file thumbnailed.
 	:type src: str
-	:param mtime: the modification time of the file thumbnailed. If `mtime` is None, `src`
-	              has to be a local file and its mtime will be read.
+	:param mtime: mtime of the source file. Optional only if `src` is a local file.
+	:type mtime: int
 	:param moreinfo: additional optional key/values to store in the thumbnail file.
 	:type moreinfo: dict
 	:returns: path of the failed info file
@@ -527,15 +572,17 @@ def get_backend():
 
 
 def create_thumbnail(src, size, moreinfo=None, use_fail_appname=None):
-	"""Generate a thumbnail for `filename`, even if the thumbnail existed.
+	"""Generate a thumbnail for `src`, even if the thumbnail existed.
 
 	Returns the path of the thumbnail generated. Creates directories if they don't exist.
 
 	If the thumbnail cannot be generated and `use_fail_appname` is given, a failure info file
-	will be generated, associated to the given app name so it is not retried too often.
+	will be generated, associated to the given app name so it is not needlessly retried.
 
 	:param src: path of the source file. Must be an image file. Cannot be a URL.
 	:type src: str
+	:param size: desired size of thumbnail. Can be any of 'large', 256 for large
+	             thumbnails or 'normal', 128 for small thumbnails.
 	:param moreinfo: optional additional key/values metadata to store in the thumbnail file.
 	:type moreinfo: dict
 	:param use_fail_appname: app name to use when creating a failure info.
@@ -564,7 +611,8 @@ def create_thumbnail(src, size, moreinfo=None, use_fail_appname=None):
 def build_thumbnail_path(src, size):
 	"""Get the path of the potential thumbnail.
 
-	The thumbnail file may or may not exist.
+	The thumbnail file may or may not exist. Even if it exists, the thumbnail may be obsolete.
+	Use :any:`try_get_thumbnail` if needing to check if the thumbnail exist and is valid.
 
 	:param src: path or URI of the source file.
 	:type src: str
@@ -591,13 +639,15 @@ def is_thumbnail_valid(thumbnail, uri, mtime):
 def try_get_thumbnail(src, size=None, mtime=None):
 	"""Get the path of the thumbnail or None if it doesn't exist.
 
+	If a thumbnail exists but is obsolete (different mtime), None is returned.
+
 	:param src: path or URI of the source file.
 	:type src: str
 	:param size: desired size of thumbnail. Can be 'large', 256 or 'normal', 128. If None,
 	             tries with the large thumbnail size first, then with the normal size.
-	:param mtime: mtime of the source file. Optional only if the source file is a local file.
+	:param mtime: mtime of the source file. Optional only if `src` is a local file.
 	:type mtime: int
-	:returns: the path of the thumbnail if it exists, else None
+	:returns: path of the thumbnail if it exists and is valid, else None
 	:rtype: str
 	"""
 
@@ -621,16 +671,21 @@ def try_get_thumbnail(src, size=None, mtime=None):
 def get_thumbnail(src, size=None, use_fail_appname=None):
 	"""Get the path of the thumbnail and create it if necessary.
 
-	Returns None if an error occured. Creates directories if they don't exist.
+	If a thumbnail exists and is valid, return it.
 
 	If the thumbnail cannot be found, and a previous failure info file had been created with
 	the given app name, the thumbnail generation is not attempted and None is returned.
+
+	Else, thumbnail generation is done. If an error occurs during generation, the function
+	returns None. If `use_fail_appname` is specified, a fail-file is generated in case of
+	error.
 
 	:param src: path of the source file. Must be an image file. Cannot be a URL.
 	:type src: str
 	:param size: desired size of thumbnail. Can be any of 'large', 256 for large
 	             thumbnails or 'normal', 128 for small thumbnails. If None, searches for any size.
-	:param moreinfo: additional optional key/values to store in the thumbnail file, if the thumbnail did not exist.
+	:param moreinfo: additional optional key/values to store in the thumbnail file.
+	                 Used only if a thumbnail is generated.
 	:type moreinfo: dict
 	:param use_fail_appname: app name to use when creating a failure info.
 	:type use_fail_appname: str
