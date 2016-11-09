@@ -563,7 +563,77 @@ class MagickBackend(object):
 		}
 
 
-BACKENDS = [MagickBackend(), PilBackend()]
+class QtBackend(object):
+	@classmethod
+	def is_available(cls):
+		try:
+			from PyQt5 import QtGui
+		except ImportError:
+			return False
+		return True
+
+	@staticmethod
+	def setattributes(img, moreinfo):
+		for k in moreinfo or {}:
+			img.setText(k, moreinfo[k])
+
+	def create_thumbnail(self, src, dest, size, moreinfo=None):
+		from PyQt5.QtCore import Qt
+		from PyQt5.QtGui import QImage
+
+		img = QImage(str(src))
+		if img.isNull():
+			return
+
+		img = img.scaled(size, size, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+		self.setattributes(img, moreinfo)
+
+		tmp = _mkstemp(dest)
+		img.save(tmp)
+		os.rename(tmp, dest)
+		return dest
+
+	def update_metadata(self, dest, moreinfo=None):
+		from PyQt5.QtGui import QImage
+
+		img = QImage(dest)
+		if img.isNull():
+			return
+
+		self.setattributes(img, moreinfo)
+		img.setText(KEY_WIDTH, str(img.size().width()))
+		img.setText(KEY_HEIGHT, str(img.size().height()))
+
+		tmp = _mkstemp(dest)
+		img.save(tmp)
+		os.rename(tmp, dest)
+		return dest
+
+	def create_fail(self, dest, moreinfo=None):
+		from PyQt5.QtGui import QImage
+
+		img = QImage(1, 1, QImage.Format_RGB32)
+		self.setattributes(img, moreinfo)
+
+		tmp = _mkstemp(dest)
+		img.save(tmp)
+		os.rename(tmp, dest)
+		return dest
+
+	def get_info(self, path):
+		from PyQt5.QtGui import QImage
+
+		img = QImage(path)
+		if img.isNull():
+			return
+
+		return {
+			'mtime': int(img.text(KEY_MTIME) or 0),
+			'uri': img.text(KEY_URI),
+		}
+
+
+BACKENDS = [QtBackend(), MagickBackend(), PilBackend()]
 
 def get_backend():
 	for backend in BACKENDS:
