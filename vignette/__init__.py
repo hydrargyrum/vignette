@@ -288,7 +288,8 @@ def create_temp(size):
 	"""
 	size = _any2size(size)[1]
 	dir = os.path.join(_thumb_path_prefix(), size)
-	os.makedirs(dir)
+	if not os.path.isdir(dir):
+		os.makedirs(dir, 0o700)
 	return _mkstemp(os.path.join(dir, 'ignored'))
 
 
@@ -296,9 +297,12 @@ def makedirs():
 	"""Create cache directories."""
 
 	root = _thumb_path_prefix()
-	os.makedirs(os.path.join(root, 'normal'), 0o700)
-	os.makedirs(os.path.join(root, 'large'), 0o700)
-	os.makedirs(os.path.join(root, 'fail'), 0o700)
+	for child in ['normal', 'large', 'fail']:
+		path = os.path.join(root, child)
+		if not os.path.isdir(path):
+			os.makedirs(path, 0o700)
+		else:
+			os.chmod(path, 0o700)
 
 
 def _thumb_path_prefix():
