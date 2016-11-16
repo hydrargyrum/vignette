@@ -19,7 +19,7 @@ generate a thumbnail by its own means and use vignette to push that thumbnail to
 Documentation
 =============
 
-The documentation can be [read online](https://vignette.readthedocs.io/).
+The documentation can be `read online <https://vignette.readthedocs.io/>`_.
 
 This library has querying functions, that do not generate thumbnails, and can be used with files or URLs, that can be non-images:
 
@@ -80,4 +80,4 @@ Vignette is licensed under the `WTFPLv2 <http://wtfpl.net>`_.
 Version
 =======
 
-Vignette is currently at version 4.0.0 and uses `Semantic Versioning <http://semver.org/>`_.
+Vignette is currently at version 4.2.1 and uses `Semantic Versioning <http://semver.org/>`_.

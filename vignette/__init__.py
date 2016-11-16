@@ -249,7 +249,7 @@ def _any2mtime(origname, mtime=None):
 	if mtime is None:
 		return int(os.path.getmtime(origname))
 	else:
-		return mtime
+		return int(float(mtime))
 
 
 def _info_dict(d, mtime=None, src=None):
@@ -478,7 +478,7 @@ class PilBackend(object):
 
 	def get_info(self, path):
 		img = self.mod.open(path)
-		mtime = int(img.info[KEY_MTIME])
+		mtime = int(float(img.info[KEY_MTIME]))
 
 		res = {
 			'mtime': mtime,
@@ -562,7 +562,7 @@ class MagickBackend(object):
 			return
 
 		return {
-			'mtime': int(img.attribute(KEY_MTIME) or 0),
+			'mtime': int(float(img.attribute(KEY_MTIME) or 0)),
 			'uri': img.attribute(KEY_URI),
 		}
 
@@ -632,7 +632,7 @@ class QtBackend(object):
 			return
 
 		return {
-			'mtime': int(img.text(KEY_MTIME) or 0),
+			'mtime': int(float(img.text(KEY_MTIME) or 0)),
 			'uri': img.text(KEY_URI),
 		}
 
