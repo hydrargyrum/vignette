@@ -687,8 +687,8 @@ class QtBackend(MetadataBackend, ThumbnailBackend):
 			return
 
 
-METADATA_BACKENDS = [QtBackend(), MagickBackend(), PilBackend()]
-THUMBNAILER_BACKENDS = [QtBackend(), MagickBackend(), PilBackend()]
+METADATA_BACKENDS = [QtBackend(), PilBackend(), MagickBackend()]
+THUMBNAILER_BACKENDS = [QtBackend(), PilBackend(), MagickBackend()]
 
 
 def get_metadata_backend():
