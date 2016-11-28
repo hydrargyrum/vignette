@@ -154,6 +154,7 @@ import hashlib
 import os
 import re
 import shutil
+import subprocess
 import sys
 import tempfile
 
@@ -611,6 +612,30 @@ class MagickBackend(MetadataBackend, ThumbnailBackend):
 			return
 
 
+class CliMixin(object):
+	cmd = None
+
+	@classmethod
+	def is_available(cls):
+		for path in os.getenv('PATH').split(os.pathsep):
+			path = os.path.join(path, cls.cmd)
+			if os.path.isfile(path):
+				return True
+		return False
+
+
+class FFMpegCliBackend(CliMixin, ThumbnailBackend):
+	cmd = 'ffmpegthumbnailer'
+
+	def create_thumbnail(self, src, dest, size):
+		args = [self.cmd, '-i', src, '-o', dest, '-s', str(size)]
+		try:
+			subprocess.check_call(args)
+		except subprocess.CalledProcessError:
+			return
+		return {}
+
+
 class QtBackend(MetadataBackend, ThumbnailBackend):
 	@classmethod
 	def is_available(cls):
@@ -688,7 +713,7 @@ class QtBackend(MetadataBackend, ThumbnailBackend):
 
 
 METADATA_BACKENDS = [QtBackend(), PilBackend(), MagickBackend()]
-THUMBNAILER_BACKENDS = [QtBackend(), PilBackend(), MagickBackend()]
+THUMBNAILER_BACKENDS = [FFMpegCliBackend(), QtBackend(), PilBackend(), MagickBackend()]
 
 
 def get_metadata_backend():
