@@ -253,13 +253,27 @@ def _any2mtime(origname, mtime=None):
 		return int(float(mtime))
 
 
-def _info_dict(d, mtime=None, src=None):
+def _info_dict(d, mtime=None, filesize=None, src=None):
 	d = dict(d or {})
 
-	if mtime is not None or src is not None:
-		d.setdefault(KEY_MTIME, str(_any2mtime(src, mtime)))
+	for k in d:
+		d[k] = str(d[k])
+
+	if mtime is not None:
+		d.setdefault(KEY_MTIME, str(int(mtime)))
+	if filesize is not None:
+		d.setdefault(KEY_SIZE, str(filesize))
+
 	if src is not None:
 		d.setdefault(KEY_URI, _any2uri(src))
+
+		try:
+			if KEY_MTIME not in d:
+				d[KEY_MTIME] = str(int(os.path.getmtime(src)))
+			if KEY_SIZE not in d:
+				d[KEY_SIZE] = str(os.path.getsize(src))
+		except OSError:
+			pass
 
 	return d
 
@@ -672,11 +686,9 @@ def create_thumbnail(src, size, moreinfo=None, use_fail_appname=None):
 	"""
 
 	size = _any2size(size)[0]
-	filesize = os.path.getsize(src)
 	dest = build_thumbnail_path(src, size)
 
 	moreinfo = _info_dict(moreinfo, src=src)
-	moreinfo[KEY_SIZE] = str(filesize)
 
 	if not os.path.isdir(os.path.dirname(dest)):
 		os.makedirs(os.path.dirname(dest), 0o700)
@@ -712,6 +724,7 @@ def build_thumbnail_path(src, size):
 
 
 def is_thumbnail_valid(thumbnail, uri, mtime):
+	mtime = int(float(mtime))
 	info = get_backend().get_info(thumbnail)
 	return info['uri'] == uri and info['mtime'] == mtime
 
