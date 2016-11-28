@@ -148,6 +148,7 @@ Module contents
 
 """
 
+from __future__ import unicode_literals
 
 import hashlib
 import os
@@ -509,14 +510,19 @@ class MagickBackend(object):
 		return True
 
 	@staticmethod
+	def encode(name):
+		return name.encode(sys.getfilesystemencoding())
+
+	@staticmethod
 	def setattributes(img, moreinfo):
 		for k in moreinfo or {}:
 			v = str(moreinfo[k]).encode('utf-8')
+			k = str(k).encode('utf-8')
 			img.attribute(k, v)
 
 	def create_thumbnail(self, src, dest, size, moreinfo=None):
 		try:
-			img = self.mod.Image(src)
+			img = self.mod.Image(self.encode(src))
 		except RuntimeError:
 			return
 
@@ -525,21 +531,21 @@ class MagickBackend(object):
 		self.setattributes(img, moreinfo)
 
 		tmp = _mkstemp(dest)
-		img.write(tmp)
+		img.write(self.encode(tmp))
 		os.rename(tmp, dest)
 		return dest
 
 	def update_metadata(self, dest, moreinfo=None):
 		try:
-			img = self.mod.Image(dest)
+			img = self.mod.Image(self.encode(dest))
 		except RuntimeError:
 			return
 		self.setattributes(img, moreinfo)
-		img.attribute(KEY_WIDTH, str(img.size().width()).encode('utf-8'))
-		img.attribute(KEY_HEIGHT, str(img.size().height()).encode('utf-8'))
+		img.attribute(KEY_WIDTH.encode('ascii'), str(img.size().width()).encode('utf-8'))
+		img.attribute(KEY_HEIGHT.encode('ascii'), str(img.size().height()).encode('utf-8'))
 
 		tmp = _mkstemp(dest)
-		img.write(tmp)
+		img.write(self.encode(tmp))
 		os.rename(tmp, dest)
 		return dest
 
@@ -551,19 +557,19 @@ class MagickBackend(object):
 		self.setattributes(img, moreinfo)
 
 		tmp = _mkstemp(dest)
-		img.write(tmp)
+		img.write(self.encode(tmp))
 		os.rename(tmp, dest)
 		return dest
 
 	def get_info(self, path):
 		try:
-			img = self.mod.Image(path)
+			img = self.mod.Image(self.encode(path))
 		except RuntimeError:
 			return
 
 		return {
-			'mtime': int(float(img.attribute(KEY_MTIME) or 0)),
-			'uri': img.attribute(KEY_URI),
+			'mtime': int(float(img.attribute(KEY_MTIME.encode('ascii')) or 0)),
+			'uri': img.attribute(KEY_URI.encode('ascii')),
 		}
 
 
