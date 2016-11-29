@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 
 import hashlib
+from functools import wraps
+import logging
 import os
 import shutil
 import tempfile
@@ -8,6 +10,24 @@ import unittest
 
 import vignette
 
+
+def do_all_backends(func):
+	@wraps(func)
+	def decorator(*args):
+		assert vignette.get_metadata_backend(), 'there are no testable backends'
+
+		all_backends = vignette.METADATA_BACKENDS
+		for backend in all_backends:
+			if backend.is_available():
+				vignette.METADATA_BACKENDS = [backend]
+				try:
+					func(*args)
+				except:
+					logging.warning('backend %r failed', type(backend))
+					raise
+		vignette.METADATA_BACKENDS = all_backends
+
+	return decorator
 
 
 class ThumbnailTests(unittest.TestCase):
@@ -24,6 +44,7 @@ class ThumbnailTests(unittest.TestCase):
 		dest = os.path.join(self.dir, 'thumbnails', 'large', hashlib.md5(uri.encode('utf-8')).hexdigest()) + '.png'
 		self.assertEqual(dest, vignette.build_thumbnail_path(self.filename, 'large'))
 
+	@do_all_backends
 	def test_basic(self):
 		dest = vignette.build_thumbnail_path(self.filename, 'large')
 		assert dest
@@ -119,4 +140,5 @@ class ThumbnailTests(unittest.TestCase):
 
 
 if __name__ == '__main__':
+	logging.basicConfig()
 	unittest.main()
