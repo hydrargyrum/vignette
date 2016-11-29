@@ -403,7 +403,7 @@ def put_thumbnail(src, size, thumb, mtime=None, moreinfo=None):
 		shutil.move(thumb, tmp)
 
 	moreinfo = _info_dict(moreinfo, mtime=mtime, src=src)
-	get_backend().update_metadata(tmp, moreinfo)
+	get_metadata_backend().update_metadata(tmp, moreinfo)
 	os.chmod(tmp, 0o600)
 	os.rename(tmp, dest)
 
@@ -437,10 +437,32 @@ def put_fail(src, appname, mtime=None, moreinfo=None):
 	dest = os.path.join(prefix, '%s.png' % md5uri)
 
 	moreinfo = _info_dict(moreinfo, mtime=mtime, src=src)
-	return get_backend().create_fail(dest, moreinfo)
+	return get_metadata_backend().create_fail(dest, moreinfo)
 
 
-class PilBackend(object):
+class MetadataBackend(object):
+	def is_available(self):
+		return False
+
+	def create_fail(self, dest, moreinfo=None):
+		raise NotImplementedError()
+
+	def get_info(self, path):
+		raise NotImplementedError()
+
+	def update_metadata(self, dest, moreinfo=None):
+		raise NotImplementedError()
+
+
+class ThumbnailBackend(object):
+	def is_available(self):
+		return False
+
+	def create_thumbnail(self, src, dest, size):
+		raise NotImplementedError()
+
+
+class PilBackend(MetadataBackend, ThumbnailBackend):
 	@classmethod
 	def is_available(cls):
 		try:
@@ -462,24 +484,23 @@ class PilBackend(object):
 
 		return outinfo
 
-	def create_thumbnail(self, src, dest, size, moreinfo=None):
+	def create_thumbnail(self, src, dest, size):
 		try:
 			img = self.mod.open(src)
 		except IOError:
 			return None
 
-		outinfo = self._pnginfo(moreinfo)
-		outinfo.add_text(KEY_WIDTH, str(img.size[0]))
-		outinfo.add_text(KEY_HEIGHT, str(img.size[1]))
+		mtime = _any2mtime(src)
 
 		img.thumbnail((size, size), self.mod.ANTIALIAS)
 
-		tmppath = _mkstemp(dest)
-
-		img.save(tmppath, pnginfo=outinfo)
+		img.save(dest)
 		img.close()
-		os.rename(tmppath, dest)
-		return dest
+		return {
+			KEY_MTIME: mtime,
+			KEY_WIDTH: str(img.size[0]),
+			KEY_HEIGHT: str(img.size[1]),
+		}
 
 	def create_fail(self, dest, moreinfo=None):
 		outinfo = self._pnginfo(moreinfo)
@@ -517,7 +538,7 @@ class PilBackend(object):
 		return dest
 
 
-class MagickBackend(object):
+class MagickBackend(MetadataBackend, ThumbnailBackend):
 	@classmethod
 	def is_available(cls):
 		try:
@@ -538,20 +559,20 @@ class MagickBackend(object):
 			k = str(k).encode('utf-8')
 			img.attribute(k, v)
 
-	def create_thumbnail(self, src, dest, size, moreinfo=None):
+	def create_thumbnail(self, src, dest, size):
 		try:
 			img = self.mod.Image(self.encode(src))
 		except RuntimeError:
 			return
 
+		mtime = _any2mtime(src)
 		geom = self.mod.Geometry(size, size)
 		img.resize(geom)
-		self.setattributes(img, moreinfo)
+		img.write(self.encode(dest))
 
-		tmp = _mkstemp(dest)
-		img.write(self.encode(tmp))
-		os.rename(tmp, dest)
-		return dest
+		return {
+			KEY_MTIME: mtime,
+		}
 
 	def update_metadata(self, dest, moreinfo=None):
 		try:
@@ -590,7 +611,7 @@ class MagickBackend(object):
 			return
 
 
-class QtBackend(object):
+class QtBackend(MetadataBackend, ThumbnailBackend):
 	@classmethod
 	def is_available(cls):
 		try:
@@ -604,7 +625,7 @@ class QtBackend(object):
 		for k in moreinfo or {}:
 			img.setText(k, moreinfo[k])
 
-	def create_thumbnail(self, src, dest, size, moreinfo=None):
+	def create_thumbnail(self, src, dest, size):
 		from PyQt5.QtCore import Qt
 		from PyQt5.QtGui import QImage
 
@@ -612,13 +633,16 @@ class QtBackend(object):
 		if img.isNull():
 			return
 
-		img = img.scaled(size, size, Qt.KeepAspectRatio, Qt.SmoothTransformation)
-		self.setattributes(img, moreinfo)
+		res = {
+			KEY_MTIME: _any2mtime(src),
+			KEY_WIDTH: img.width(),
+			KEY_HEIGHT: img.height(),
+		}
 
-		tmp = _mkstemp(dest)
-		img.save(tmp)
-		os.rename(tmp, dest)
-		return dest
+		img = img.scaled(size, size, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+
+		img.save(dest)
+		return res
 
 	def update_metadata(self, dest, moreinfo=None):
 		from PyQt5.QtGui import QImage
@@ -663,12 +687,20 @@ class QtBackend(object):
 			return
 
 
-BACKENDS = [QtBackend(), MagickBackend(), PilBackend()]
+METADATA_BACKENDS = [QtBackend(), MagickBackend(), PilBackend()]
+THUMBNAILER_BACKENDS = [QtBackend(), MagickBackend(), PilBackend()]
 
-def get_backend():
-	for backend in BACKENDS:
+
+def get_metadata_backend():
+	for backend in METADATA_BACKENDS:
 		if backend.is_available():
 			return backend
+
+
+def iter_thumbnail_backends():
+	for backend in THUMBNAILER_BACKENDS:
+		if backend.is_available():
+			yield backend
 
 
 def create_thumbnail(src, size, moreinfo=None, use_fail_appname=None):
@@ -692,15 +724,14 @@ def create_thumbnail(src, size, moreinfo=None, use_fail_appname=None):
 	"""
 
 	size = _any2size(size)[0]
-	dest = build_thumbnail_path(src, size)
+	tmp = create_temp(size)
 
-	moreinfo = _info_dict(moreinfo, src=src)
-
-	if not os.path.isdir(os.path.dirname(dest)):
-		os.makedirs(os.path.dirname(dest), 0o700)
-
-	if get_backend().create_thumbnail(src, dest, size, moreinfo):
-		return dest
+	for backend in iter_thumbnail_backends():
+		moreinfo = backend.create_thumbnail(src, tmp, size)
+		if moreinfo is not None:
+			moreinfo = _info_dict(moreinfo, src=src)
+			mtime = moreinfo[KEY_MTIME]
+			return put_thumbnail(src, size, tmp, mtime=mtime, moreinfo=moreinfo)
 
 	if use_fail_appname is not None:
 		put_fail(src, use_fail_appname)
@@ -731,7 +762,7 @@ def build_thumbnail_path(src, size):
 
 def is_thumbnail_valid(thumbnail, uri, mtime):
 	mtime = int(float(mtime))
-	info = get_backend().get_info(thumbnail)
+	info = get_metadata_backend().get_info(thumbnail)
 	try:
 		return info['uri'] == uri and info['mtime'] == mtime
 	except (TypeError, KeyError):
@@ -810,7 +841,7 @@ def get_thumbnail(src, size=None, use_fail_appname=None):
 
 
 def thumbnail_info(thumbnail):
-	return get_backend().get_info(thumbnail)
+	return get_metadata_backend().get_info(thumbnail)
 
 
 def main():
