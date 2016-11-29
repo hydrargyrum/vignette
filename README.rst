@@ -70,7 +70,39 @@ Requirements
 
 Vignette works with both Python 2 and Python 3.
 
-Vignette requires the Python Imaging Library (PIL) for now but can use other image backends as plugins.
+Vignette requires at least one image backend to work properly.
+See the backends section below.
+
+Backends
+========
+
+Vignette does not contain image format code. In order to generate a thumbnail from an image or
+update metadata as required by the Freedestkop standard, vignette uses external libraries.
+The dependencies are "lazy" though: if an external library is missing, vignette ignores it and
+falls back on other equivalent libs.
+
+Backends are divided in 2 types:
+
+* thumbnail backends, which create a thumbnail image from a source image file, a source video
+  file, or another input URL
+* metadata backends, which are used internally in vignette to manage the metadata of thumbnails
+
+Vignette currently has thumbnail/metadata backends supporting:
+
+* Python Imaging Library (PIL)
+* PyQt
+* PythonMagick
+
+One of these libraries is required for vignette to work in basic cases (thumbnailing local images).
+
+Vignette has thumbnail backends to support these tools:
+
+* `ffmpegthumbnailer <https://github.com/dirkvdb/ffmpegthumbnailer/>`_, supporting video files
+* pdftocairo from `poppler-utils <https://poppler.freedesktop.org/>`_, supporting PDF documents
+* `ooo-thumbnailer <https://launchpad.net/ooo-thumbnailer>`_, supporting OpenOffice documents
+
+If a lib is not present, vignette continues to operate but thumbnails for certain file formats
+may not be generated.
 
 License
 =======
