@@ -492,15 +492,19 @@ class PilBackend(object):
 		return dest
 
 	def get_info(self, path):
-		img = self.mod.open(path)
-		mtime = int(float(img.info[KEY_MTIME]))
+		try:
+			img = self.mod.open(path)
+			mtime = int(float(img.info[KEY_MTIME]))
 
-		res = {
-			'mtime': mtime,
-			'uri': img.info[KEY_URI],
-		}
-		img.close()
-		return res
+			res = {
+				'mtime': mtime,
+				'uri': img.info[KEY_URI],
+			}
+			img.close()
+		except (OSError, IOError, KeyError, ValueError):
+			return
+		else:
+			return res
 
 	def update_metadata(self, dest, moreinfo=None):
 		img = self.mod.open(dest)
@@ -578,13 +582,12 @@ class MagickBackend(object):
 	def get_info(self, path):
 		try:
 			img = self.mod.Image(self.encode(path))
-		except RuntimeError:
+			return {
+				'mtime': int(float(img.attribute(KEY_MTIME.encode('ascii')) or 0)),
+				'uri': img.attribute(KEY_URI.encode('ascii')),
+			}
+		except (RuntimeError, KeyError, ValueError):
 			return
-
-		return {
-			'mtime': int(float(img.attribute(KEY_MTIME.encode('ascii')) or 0)),
-			'uri': img.attribute(KEY_URI.encode('ascii')),
-		}
 
 
 class QtBackend(object):
@@ -651,10 +654,13 @@ class QtBackend(object):
 		if img.isNull():
 			return
 
-		return {
-			'mtime': int(float(img.text(KEY_MTIME) or 0)),
-			'uri': img.text(KEY_URI),
-		}
+		try:
+			return {
+				'mtime': int(float(img.text(KEY_MTIME) or 0)),
+				'uri': img.text(KEY_URI),
+			}
+		except ValueError:
+			return
 
 
 BACKENDS = [QtBackend(), MagickBackend(), PilBackend()]
@@ -726,7 +732,10 @@ def build_thumbnail_path(src, size):
 def is_thumbnail_valid(thumbnail, uri, mtime):
 	mtime = int(float(mtime))
 	info = get_backend().get_info(thumbnail)
-	return info['uri'] == uri and info['mtime'] == mtime
+	try:
+		return info['uri'] == uri and info['mtime'] == mtime
+	except (TypeError, KeyError):
+		return False
 
 
 def try_get_thumbnail(src, size=None, mtime=None):
