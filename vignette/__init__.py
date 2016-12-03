@@ -25,6 +25,9 @@ thumbnails for recently visited pages or bookmarks.
 thumbnail for any file or URL, if another app generated a thumbnail for it. An app can also
 generate a thumbnail by its own means and use `vignette` to push that thumbnail to the store.
 
+Vignette has optional support for extra backends like ffmpegthumbnailer, poppler-utils,
+ooo-thumbnailer, if these tools are installed.
+
 Summary of the FreeDesktop standard
 ===================================
 

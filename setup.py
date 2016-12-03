@@ -28,6 +28,9 @@ thumbnails for recently visited pages or bookmarks.
 Vignette by itself can only generate thumbnails for local image files but can retrieve
 thumbnail for any file or URL, if another app generated a thumbnail for it. An app can also
 generate a thumbnail by its own means and use vignette to push that thumbnail to the store.
+
+Vignette has optional support for extra backends like ffmpegthumbnailer, poppler-utils,
+ooo-thumbnailer, if these tools are installed.
 	''',
 	url='https://github.com/hydrargyrum/vignette',
 	author='Hg',
