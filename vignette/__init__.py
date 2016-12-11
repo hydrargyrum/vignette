@@ -407,7 +407,9 @@ def put_thumbnail(src, size, thumb, mtime=None, moreinfo=None):
 		shutil.move(thumb, tmp)
 
 	moreinfo = _info_dict(moreinfo, mtime=mtime, src=src)
-	get_metadata_backend().update_metadata(tmp, moreinfo)
+	if not get_metadata_backend().update_metadata(tmp, moreinfo):
+		return
+
 	os.chmod(tmp, 0o600)
 	os.rename(tmp, dest)
 
@@ -794,7 +796,10 @@ def create_thumbnail(src, size, moreinfo=None, use_fail_appname=None):
 		if moreinfo is not None:
 			moreinfo = _info_dict(moreinfo, src=src)
 			mtime = moreinfo[KEY_MTIME]
-			return put_thumbnail(src, size, tmp, mtime=mtime, moreinfo=moreinfo)
+
+			dest = put_thumbnail(src, size, tmp, mtime=mtime, moreinfo=moreinfo)
+			if dest:
+				return dest
 
 	if use_fail_appname is not None:
 		put_fail(src, use_fail_appname)
