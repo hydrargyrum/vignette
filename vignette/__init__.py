@@ -661,6 +661,8 @@ class OooCliBackend(CliMixin, ThumbnailBackend):
 			subprocess.check_call(args)
 		except subprocess.CalledProcessError:
 			return
+		if not (os.path.exists(dest) and os.path.getsize(dest)):
+			return
 		return {}
 
 
