@@ -112,4 +112,4 @@ Vignette is licensed under the `WTFPLv2 <http://wtfpl.net>`_.
 Version
 =======
 
-Vignette is currently at version 4.3.1 and uses `Semantic Versioning <http://semver.org/>`_.
+Vignette is currently at version 4.3.2 and uses `Semantic Versioning <http://semver.org/>`_.
