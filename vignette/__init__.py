@@ -222,6 +222,11 @@ KEY_MOVIE_LENGTH = 'Thumb::Movie::Length'
 """Optional thumbnail metadata key for source video duration (in seconds)."""
 
 
+VERSION = '4.3.3'  # $version
+
+"""Version of the vignette library."""
+
+
 def _any2size(size):
 	if size in ('normal', 128, '128'):
 		return (128, 'normal')

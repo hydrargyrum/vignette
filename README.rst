@@ -112,4 +112,6 @@ Vignette is licensed under the `WTFPLv2 <http://wtfpl.net>`_.
 Version
 =======
 
+.. $version
+
 Vignette is currently at version 4.3.3 and uses `Semantic Versioning <http://semver.org/>`_.
