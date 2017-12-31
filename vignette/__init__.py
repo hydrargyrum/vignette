@@ -155,6 +155,7 @@ from __future__ import unicode_literals
 
 from glob import glob
 import hashlib
+import mimetypes
 import os
 import re
 import shlex
@@ -479,8 +480,20 @@ FILETYPE_DOCUMENT = 'document'
 
 
 class ThumbnailBackend(object):
+	accepted_mimes = re.compile(r'$^')  # will never match
+
 	def is_available(self):
 		return False
+
+	@staticmethod
+	def guess_mime(path):
+		return mimetypes.guess_type(path)[0]
+
+	def is_accepted(self, path):
+		mime = self.guess_mime(path)
+		if mime is None:
+			return False
+		return bool(self.accepted_mimes.match(mime))
 
 	def create_thumbnail(self, src, dest, size):
 		raise NotImplementedError()
@@ -488,6 +501,7 @@ class ThumbnailBackend(object):
 
 class PilBackend(MetadataBackend, ThumbnailBackend):
 	handled_types = frozenset([FILETYPE_IMAGE])
+	accepted_mimes = re.compile('^image/')
 
 	@classmethod
 	def is_available(cls):
@@ -566,6 +580,7 @@ class PilBackend(MetadataBackend, ThumbnailBackend):
 
 class MagickBackend(MetadataBackend, ThumbnailBackend):
 	handled_types = frozenset([FILETYPE_IMAGE])
+	accepted_mimes = re.compile('^image/')
 
 	@classmethod
 	def is_available(cls):
@@ -650,6 +665,7 @@ class CliMixin(object):
 
 class PopplerCliBackend(CliMixin, ThumbnailBackend):
 	handled_types = frozenset([FILETYPE_DOCUMENT])
+	accepted_mimes = re.compile('^application/pdf$')
 	cmd = 'pdftocairo'
 
 	def create_thumbnail(self, src, dest, size):
@@ -664,6 +680,7 @@ class PopplerCliBackend(CliMixin, ThumbnailBackend):
 
 class OooCliBackend(CliMixin, ThumbnailBackend):
 	handled_types = frozenset([FILETYPE_DOCUMENT])
+	accepted_mimes = re.compile('^application/vnd.oasis.opendocument.')
 	cmd = 'ooo-thumbnailer'
 
 	def create_thumbnail(self, src, dest, size):
@@ -679,6 +696,7 @@ class OooCliBackend(CliMixin, ThumbnailBackend):
 
 class QtBackend(MetadataBackend, ThumbnailBackend):
 	handled_types = frozenset([FILETYPE_IMAGE])
+	accepted_mimes = re.compile('^image/')
 
 	@classmethod
 	def is_available(cls):
@@ -839,6 +857,9 @@ def iter_thumbnail_backends():
 			yield backend
 
 
+FILTER_MIMETYPES = True
+
+
 def create_thumbnail(src, size, moreinfo=None, use_fail_appname=None):
 	"""Generate a thumbnail for `src`, even if the thumbnail existed.
 
@@ -863,6 +884,9 @@ def create_thumbnail(src, size, moreinfo=None, use_fail_appname=None):
 	tmp = create_temp(size)
 
 	for backend in iter_thumbnail_backends():
+		if FILTER_MIMETYPES and not backend.is_accepted(src):
+			continue
+
 		moreinfo = backend.create_thumbnail(src, tmp, size)
 		if moreinfo is not None:
 			moreinfo = _info_dict(moreinfo, src=src)
