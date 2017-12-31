@@ -154,6 +154,7 @@ Module contents
 from __future__ import unicode_literals
 
 import hashlib
+import mimetypes
 import os
 import re
 import shutil
@@ -469,11 +470,23 @@ class ThumbnailBackend(object):
 	def is_available(self):
 		return False
 
+	@staticmethod
+	def guess_mime(path):
+		return mimetypes.guess_type(path)[0]
+
+	def is_accepted(self, path):
+		mime = self.guess_mime(path)
+		if mime is None:
+			return False
+		return bool(self.accepted_mimes.match(mime))
+
 	def create_thumbnail(self, src, dest, size):
 		raise NotImplementedError()
 
 
 class PilBackend(MetadataBackend, ThumbnailBackend):
+	accepted_mimes = re.compile('^image/')
+
 	@classmethod
 	def is_available(cls):
 		try:
@@ -550,6 +563,8 @@ class PilBackend(MetadataBackend, ThumbnailBackend):
 
 
 class MagickBackend(MetadataBackend, ThumbnailBackend):
+	accepted_mimes = re.compile('^image/')
+
 	@classmethod
 	def is_available(cls):
 		try:
@@ -635,6 +650,7 @@ class CliMixin(object):
 
 
 class FFMpegCliBackend(CliMixin, ThumbnailBackend):
+	accepted_mimes = re.compile('^video/')
 	cmd = 'ffmpegthumbnailer'
 
 	def create_thumbnail(self, src, dest, size):
@@ -647,6 +663,7 @@ class FFMpegCliBackend(CliMixin, ThumbnailBackend):
 
 
 class PopplerCliBackend(CliMixin, ThumbnailBackend):
+	accepted_mimes = re.compile('^application/pdf$')
 	cmd = 'pdftocairo'
 
 	def create_thumbnail(self, src, dest, size):
@@ -660,6 +677,7 @@ class PopplerCliBackend(CliMixin, ThumbnailBackend):
 
 
 class OooCliBackend(CliMixin, ThumbnailBackend):
+	accepted_mimes = re.compile('^application/vnd.oasis.opendocument.')
 	cmd = 'ooo-thumbnailer'
 
 	def create_thumbnail(self, src, dest, size):
@@ -674,6 +692,8 @@ class OooCliBackend(CliMixin, ThumbnailBackend):
 
 
 class QtBackend(MetadataBackend, ThumbnailBackend):
+	accepted_mimes = re.compile('^image/')
+
 	@classmethod
 	def is_available(cls):
 		try:
@@ -797,6 +817,9 @@ def create_thumbnail(src, size, moreinfo=None, use_fail_appname=None):
 	tmp = create_temp(size)
 
 	for backend in iter_thumbnail_backends():
+		if not backend.is_accepted(src):
+			continue
+
 		moreinfo = backend.create_thumbnail(src, tmp, size)
 		if moreinfo is not None:
 			moreinfo = _info_dict(moreinfo, src=src)
