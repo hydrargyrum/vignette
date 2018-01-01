@@ -153,9 +153,11 @@ Module contents
 
 from __future__ import unicode_literals
 
+from glob import glob
 import hashlib
 import os
 import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -163,8 +165,10 @@ import tempfile
 
 if sys.version_info.major > 2:
 	from urllib.request import pathname2url
+	from configparser import RawConfigParser
 else:
 	from urllib import pathname2url
+	from ConfigParser import RawConfigParser
 
 
 __all__ = (
@@ -625,25 +629,12 @@ class MagickBackend(MetadataBackend, ThumbnailBackend):
 class CliMixin(object):
 	cmd = None
 
-	@classmethod
-	def is_available(cls):
+	def is_available(self):
 		for path in os.getenv('PATH').split(os.pathsep):
-			path = os.path.join(path, cls.cmd)
+			path = os.path.join(path, self.cmd)
 			if os.path.isfile(path):
 				return True
 		return False
-
-
-class FFMpegCliBackend(CliMixin, ThumbnailBackend):
-	cmd = 'ffmpegthumbnailer'
-
-	def create_thumbnail(self, src, dest, size):
-		args = [self.cmd, '-i', src, '-o', dest, '-s', str(size)]
-		try:
-			subprocess.check_call(args)
-		except subprocess.CalledProcessError:
-			return
-		return {}
 
 
 class PopplerCliBackend(CliMixin, ThumbnailBackend):
@@ -749,16 +740,61 @@ class QtBackend(MetadataBackend, ThumbnailBackend):
 			return
 
 
+class GnomeThumbnailer(CliMixin, ThumbnailBackend):
+	def __init__(self, cmd_test, cmd_exec, mimes):
+		self.cmd = cmd_test
+		self.accepted_mimes = re.compile('^(?:%s)$' % '|'.join(map(re.escape, mimes)))
+		cmd_exec = re.sub('%([iosu])', r'%(\1)s', cmd_exec)
+		self.cmd_exec = shlex.split(cmd_exec)
+
+	def __repr__(self):
+		return '<%s cmd=%r>' % (type(self).__name__, self.cmd)
+
+	def create_thumbnail(self, src, dest, size):
+		vars = {
+			'i': src,
+			'o': dest,
+			'u': _any2uri(src),
+			's': str(size),
+		}
+		args = [arg % vars for arg in self.cmd_exec]
+		try:
+			subprocess.check_call(args)
+		except subprocess.CalledProcessError:
+			return
+		if not (os.path.exists(dest) and os.path.getsize(dest)):
+			return
+		return {}
+
+
+GNOME_THUMBNAILERS_PATH = '/usr/share/thumbnailers/*.thumbnailer'
+
+
+def build_gnome_thumbnailers():
+	section = 'Thumbnailer Entry'
+	for f in glob(GNOME_THUMBNAILERS_PATH):
+		cfg = RawConfigParser()
+		if not cfg.read(f):
+			continue
+
+		cmd_test = cfg.get(section, 'TryExec')
+		cmd_exec = cfg.get(section, 'Exec')
+		mimes = [m for m in cfg.get(section, 'MimeType').split(';') if m]
+		backend = GnomeThumbnailer(cmd_test, cmd_exec, mimes)
+		yield backend
+
+
 METADATA_BACKENDS = [QtBackend(), PilBackend(), MagickBackend()]
 
 THUMBNAILER_BACKENDS = [
 	OooCliBackend(),
 	PopplerCliBackend(),
-	FFMpegCliBackend(),
 	QtBackend(),
 	PilBackend(),
 	MagickBackend()
 ]
+
+THUMBNAILER_BACKENDS.extend(build_gnome_thumbnailers())
 
 
 def get_metadata_backend():
