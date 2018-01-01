@@ -738,6 +738,21 @@ class AtrilCliBackend(EvinceCliBackend):
 	cmd = 'atril-thumbnailer'
 
 
+class ExeCliBackend(CliMixin, ThumbnailBackend):
+	accepted_mimes = re.compile('^application/x-dosexec|application/x-msi$')
+	cmd = 'exe-thumbnailer'
+
+	def create_thumbnail(self, src, dest, size):
+		args = [self.cmd, src, dest, 'this://is.invalid']
+		try:
+			subprocess.check_call(args)
+		except subprocess.CalledProcessError:
+			return
+		if not (os.path.exists(dest) and os.path.getsize(dest)):
+			return
+		return {}
+
+
 class QtBackend(MetadataBackend, ThumbnailBackend):
 	handled_types = frozenset([FILETYPE_IMAGE])
 	_accepted_mimes = None
