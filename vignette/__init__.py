@@ -489,8 +489,28 @@ class ThumbnailBackend(object):
 	def guess_mime(path):
 		return mimetypes.guess_type(path)[0]
 
+	@staticmethod
+	def guess_magic(path):
+		try:
+			import magic
+		except ImportError:
+			return None
+
+		if hasattr(magic, 'detect_from_filename'):
+			# libmagic's python bindings
+			try:
+				return magic.detect_from_filename(path).mime_type
+			except ValueError:
+				return None
+		elif hasattr(magic, 'from_file'):
+			# pip's python-magic
+			try:
+				return magic.from_file(path, mime=True)
+			except IOError:
+				return None
+
 	def is_accepted(self, path):
-		mime = self.guess_mime(path)
+		mime = self.guess_magic(path) or self.guess_mime(path)
 		if mime is None:
 			return False
 		return bool(self.accepted_mimes.match(mime))

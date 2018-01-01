@@ -62,6 +62,7 @@ ooo-thumbnailer, if these tools are installed.
 	extras_require={
 		'Pillow': ['Pillow'],
 		'PythonMagick': ['PythonMagick'],
+		'magic': ['python-magic'],
 	},
 
 	zip_safe=True,
