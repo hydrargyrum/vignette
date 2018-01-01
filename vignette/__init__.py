@@ -714,6 +714,30 @@ class OooCliBackend(CliMixin, ThumbnailBackend):
 		return {}
 
 
+class EvinceCliBackend(CliMixin, ThumbnailBackend):
+	accepted_mimes = re.compile(
+		'^application/pdf|'
+		'image/vnd.djvu|'
+		'application/postscript|'
+		'application/x-dvi$'
+	)
+	cmd = 'evince-thumbnailer'
+
+	def create_thumbnail(self, src, dest, size):
+		args = [self.cmd, '-s', str(size), src, dest]
+		try:
+			subprocess.check_call(args)
+		except subprocess.CalledProcessError:
+			return
+		if not (os.path.exists(dest) and os.path.getsize(dest)):
+			return
+		return {}
+
+
+class AtrilCliBackend(EvinceCliBackend):
+	cmd = 'atril-thumbnailer'
+
+
 class QtBackend(MetadataBackend, ThumbnailBackend):
 	handled_types = frozenset([FILETYPE_IMAGE])
 	_accepted_mimes = None
@@ -865,6 +889,8 @@ METADATA_BACKENDS = [QtBackend(), PilBackend(), MagickBackend()]
 ALL_THUMBNAILER_BACKENDS = [
 	OooCliBackend(),
 	PopplerCliBackend(),
+	EvinceCliBackend(),
+	AtrilCliBackend(),
 	QtBackend(),
 	PilBackend(),
 	MagickBackend()
