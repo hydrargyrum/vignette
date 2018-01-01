@@ -753,6 +753,35 @@ class ExeCliBackend(CliMixin, ThumbnailBackend):
 		return {}
 
 
+class OggThumbCliBackend(CliMixin, ThumbnailBackend):
+	accepted_mimes = re.compile('^video/ogg$')
+	cmd = 'oggThumb'
+
+	def create_thumbnail(self, src, dest, size):
+		try:
+			len_ms = int(subprocess.check_output(['oggLength', src]).strip())
+		except subprocess.CalledProcessError:
+			return
+
+		args = [
+			self.cmd,
+			'-o', 'png',
+			'-n', dest,
+			'-t', str(len_ms / 10000), # 10% of the file, in secs
+			'-s', '%{0}x%{0}'.format(size),
+			src,
+		]
+		try:
+			subprocess.check_call(args)
+		except subprocess.CalledProcessError:
+			return
+		if not (os.path.exists(dest) and os.path.getsize(dest)):
+			return
+		return {
+			KEY_MOVIE_LENGTH: str(len_ms) / 1000,
+		}
+
+
 class QtBackend(MetadataBackend, ThumbnailBackend):
 	handled_types = frozenset([FILETYPE_IMAGE])
 	_accepted_mimes = None
