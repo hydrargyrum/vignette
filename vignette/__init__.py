@@ -469,6 +469,11 @@ class MetadataBackend(object):
 		raise NotImplementedError()
 
 
+FILETYPE_IMAGE = 'image'
+FILETYPE_VIDEO = 'video'
+FILETYPE_DOCUMENT = 'document'
+
+
 class ThumbnailBackend(object):
 	def is_available(self):
 		return False
@@ -478,6 +483,8 @@ class ThumbnailBackend(object):
 
 
 class PilBackend(MetadataBackend, ThumbnailBackend):
+	handled_types = frozenset([FILETYPE_IMAGE])
+
 	@classmethod
 	def is_available(cls):
 		try:
@@ -554,6 +561,8 @@ class PilBackend(MetadataBackend, ThumbnailBackend):
 
 
 class MagickBackend(MetadataBackend, ThumbnailBackend):
+	handled_types = frozenset([FILETYPE_IMAGE])
+
 	@classmethod
 	def is_available(cls):
 		try:
@@ -638,6 +647,7 @@ class CliMixin(object):
 
 
 class PopplerCliBackend(CliMixin, ThumbnailBackend):
+	handled_types = frozenset([FILETYPE_DOCUMENT])
 	cmd = 'pdftocairo'
 
 	def create_thumbnail(self, src, dest, size):
@@ -651,6 +661,7 @@ class PopplerCliBackend(CliMixin, ThumbnailBackend):
 
 
 class OooCliBackend(CliMixin, ThumbnailBackend):
+	handled_types = frozenset([FILETYPE_DOCUMENT])
 	cmd = 'ooo-thumbnailer'
 
 	def create_thumbnail(self, src, dest, size):
@@ -665,6 +676,8 @@ class OooCliBackend(CliMixin, ThumbnailBackend):
 
 
 class QtBackend(MetadataBackend, ThumbnailBackend):
+	handled_types = frozenset([FILETYPE_IMAGE])
+
 	@classmethod
 	def is_available(cls):
 		try:
@@ -741,11 +754,26 @@ class QtBackend(MetadataBackend, ThumbnailBackend):
 
 
 class GnomeThumbnailer(CliMixin, ThumbnailBackend):
+	mime_to_handled = {
+		re.compile('^image/'): FILETYPE_IMAGE,
+		re.compile('^video/'): FILETYPE_VIDEO,
+		re.compile('^application/pdf'): FILETYPE_DOCUMENT,
+		re.compile('^application/vnd.oasis.opendocument.'): FILETYPE_DOCUMENT,
+		re.compile('^application/vnd.openxmlformats-officedocument.'): FILETYPE_DOCUMENT,
+	}
+
 	def __init__(self, cmd_test, cmd_exec, mimes):
 		self.cmd = cmd_test
 		self.accepted_mimes = re.compile('^(?:%s)$' % '|'.join(map(re.escape, mimes)))
 		cmd_exec = re.sub('%([iosu])', r'%(\1)s', cmd_exec)
 		self.cmd_exec = shlex.split(cmd_exec)
+
+		self.handled_types = set()
+		for mime in mimes:
+			for reobj, const in self.mime_to_handled.items():
+				if reobj.match(mime):
+					self.handled_types.add(const)
+					break
 
 	def __repr__(self):
 		return '<%s cmd=%r>' % (type(self).__name__, self.cmd)
@@ -786,7 +814,7 @@ def build_gnome_thumbnailers():
 
 METADATA_BACKENDS = [QtBackend(), PilBackend(), MagickBackend()]
 
-THUMBNAILER_BACKENDS = [
+ALL_THUMBNAILER_BACKENDS = [
 	OooCliBackend(),
 	PopplerCliBackend(),
 	QtBackend(),
@@ -794,7 +822,9 @@ THUMBNAILER_BACKENDS = [
 	MagickBackend()
 ]
 
-THUMBNAILER_BACKENDS.extend(build_gnome_thumbnailers())
+ALL_THUMBNAILER_BACKENDS.extend(build_gnome_thumbnailers())
+
+THUMBNAILER_BACKENDS = list(ALL_THUMBNAILER_BACKENDS)
 
 
 def get_metadata_backend():
@@ -951,6 +981,19 @@ def get_thumbnail(src, size=None, use_fail_appname=None):
 
 def thumbnail_info(thumbnail):
 	return get_metadata_backend().get_info(thumbnail)
+
+
+def select_thumbnailer_types(types):
+	"""Select a subset of thumbnailer backends, by type of handled file.
+
+	:param types: iterable containing constants `FILETYPE_*`
+	"""
+	global THUMBNAILER_BACKENDS
+
+	if isinstance(types, (bytes, str)):
+		types = (types,)
+	THUMBNAILER_BACKENDS = [b for b in ALL_THUMBNAILER_BACKENDS
+	                        if b.handled_types & set(types)]
 
 
 def main():
