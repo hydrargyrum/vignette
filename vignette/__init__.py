@@ -950,8 +950,11 @@ def thumbnail_info(thumbnail):
 
 
 def main():
-	print(get_thumbnail(sys.argv[1]))
+	output = get_thumbnail(sys.argv[1])
+	if output is None:
+		return 1
+	print(output)
 
 
 if __name__ == '__main__':
-	main()
+	sys.exit(main() or 0)
