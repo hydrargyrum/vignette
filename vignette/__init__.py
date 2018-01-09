@@ -716,7 +716,7 @@ class OooCliBackend(CliMixin, ThumbnailBackend):
 
 class QtBackend(MetadataBackend, ThumbnailBackend):
 	handled_types = frozenset([FILETYPE_IMAGE])
-	accepted_mimes = re.compile('^image/')
+	_accepted_mimes = None
 
 	@classmethod
 	def is_available(cls):
@@ -725,6 +725,16 @@ class QtBackend(MetadataBackend, ThumbnailBackend):
 		except (ImportError, RuntimeError):
 			return False
 		return True
+
+	@property
+	def accepted_mimes(self):
+		if self._accepted_mimes is None:
+			from PyQt5.QtGui import QImageReader
+
+			mimes = [bytes(ba).decode('ascii') for ba in QImageReader.supportedMimeTypes()]
+			self._accepted_mimes = re.compile('^(?:%s)$' % '|'.join(map(re.escape, mimes)))
+
+		return self._accepted_mimes
 
 	@staticmethod
 	def setattributes(img, moreinfo):
