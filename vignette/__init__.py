@@ -666,8 +666,8 @@ class QtBackend(MetadataBackend, ThumbnailBackend):
 	@classmethod
 	def is_available(cls):
 		try:
-			from PyQt5 import QtGui
-		except ImportError:
+			from PyQt5.QtGui import QImageReader
+		except (ImportError, RuntimeError):
 			return False
 		return True
 
