@@ -595,8 +595,6 @@ class MagickBackend(MetadataBackend, ThumbnailBackend):
 		except RuntimeError:
 			return
 		self.setattributes(img, moreinfo)
-		img.attribute(KEY_WIDTH.encode('ascii'), str(img.size().width()).encode('utf-8'))
-		img.attribute(KEY_HEIGHT.encode('ascii'), str(img.size().height()).encode('utf-8'))
 
 		tmp = _mkstemp(dest)
 		img.write(self.encode(tmp))
@@ -705,8 +703,6 @@ class QtBackend(MetadataBackend, ThumbnailBackend):
 			return
 
 		self.setattributes(img, moreinfo)
-		img.setText(KEY_WIDTH, str(img.size().width()))
-		img.setText(KEY_HEIGHT, str(img.size().height()))
 
 		tmp = _mkstemp(dest)
 		img.save(tmp)
