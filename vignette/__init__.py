@@ -226,7 +226,7 @@ KEY_MOVIE_LENGTH = 'Thumb::Movie::Length'
 """Optional thumbnail metadata key for source video duration (in seconds)."""
 
 
-VERSION = '4.3.3'  # $version
+VERSION = '4.4.0'  # $version
 
 """Version of the vignette library."""
 
