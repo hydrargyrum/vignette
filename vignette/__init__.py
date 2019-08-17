@@ -198,6 +198,7 @@ __all__ = (
 	'FILETYPE_IMAGE',
 	'FILETYPE_VIDEO',
 	'FILETYPE_DOCUMENT',
+	'FILETYPE_MISC',
 )
 
 if sys.version_info.major == 2:
@@ -237,7 +238,7 @@ KEY_MOVIE_LENGTH = 'Thumb::Movie::Length'
 """Optional thumbnail metadata key for source video duration (in seconds)."""
 
 
-VERSION = '4.5.1'  # $version
+VERSION = '4.5.2'  # $version
 
 """Version of the vignette library."""
 
@@ -485,6 +486,7 @@ class MetadataBackend(object):
 FILETYPE_IMAGE = 'image'
 FILETYPE_VIDEO = 'video'
 FILETYPE_DOCUMENT = 'document'
+FILETYPE_MISC = 'misc'
 
 
 class ThumbnailBackend(object):
@@ -729,6 +731,7 @@ class EvinceCliBackend(CliMixin, ThumbnailBackend):
 		'application/postscript|'
 		'application/x-dvi$'
 	)
+	handled_types = frozenset([FILETYPE_DOCUMENT])
 	cmd = 'evince-thumbnailer'
 
 	def create_thumbnail(self, src, dest, size):
@@ -747,6 +750,7 @@ class AtrilCliBackend(EvinceCliBackend):
 
 
 class ExeCliBackend(CliMixin, ThumbnailBackend):
+	handled_types = frozenset([FILETYPE_MISC])
 	accepted_mimes = re.compile('^application/x-dosexec|application/x-msi$')
 	cmd = 'exe-thumbnailer'
 
@@ -763,6 +767,7 @@ class ExeCliBackend(CliMixin, ThumbnailBackend):
 
 class OggThumbCliBackend(CliMixin, ThumbnailBackend):
 	accepted_mimes = re.compile('^video/ogg$')
+	handled_types = frozenset([FILETYPE_VIDEO])
 	cmd = 'oggThumb'
 
 	def create_thumbnail(self, src, dest, size):
