@@ -221,7 +221,7 @@ KEY_MIME = 'Thumb::Mimetype'
 
 """Optional thumbnail metadata key for source file MIME type."""
 
-KEY_DOC_PAGES =  'Thumb::Document::Pages'
+KEY_DOC_PAGES = 'Thumb::Document::Pages'
 
 """Optional thumbnail metadata key for source document number of pages."""
 
