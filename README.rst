@@ -12,9 +12,14 @@ Thumbnails are not limited to image files on disk but can be generated for other
 for example videos or documents but also for any URL, for example a web browser could store
 thumbnails for recently visited pages or bookmarks.
 
-Vignette by itself can only generate thumbnails for local image files but can retrieve
+Vignette by itself can only generate thumbnails for local files but can retrieve
 thumbnail for any file or URL, if another app generated a thumbnail for it. An app can also
 generate a thumbnail by its own means and use vignette to push that thumbnail to the store.
+
+The range of files for which vignette can generate thumbnails depends on plugins
+as it supports third-party libraries and tools. For example, if the
+evince-thumbnailer command is installed, it will be able to generate thumbnails
+for PDF files.
 
 Documentation
 =============
@@ -95,10 +100,13 @@ Vignette currently has thumbnail/metadata backends supporting:
 
 One of these libraries is required for vignette to work in basic cases (thumbnailing local images).
 
-Vignette has thumbnail backends to support these tools:
+Vignette has additional thumbnail backends to support these tools:
 
 * `ffmpegthumbnailer <https://github.com/dirkvdb/ffmpegthumbnailer/>`_, supporting video files
-* pdftocairo from `poppler-utils <https://poppler.freedesktop.org/>`_, supporting PDF documents
+* `oggThumb <https://sourceforge.net/projects/oggvideotools/>`_, supporting OGG video files
+* `pdftocairo` from `poppler-utils <https://poppler.freedesktop.org/>`_, supporting PDF documents
+* `evince-thumbnailer <https://wiki.gnome.org/Apps/Evince>`_, supporting PDF documents
+* `atril-thumbnailer <https://mate-desktop.org/>`_, supporting PDF documents
 * `ooo-thumbnailer <https://launchpad.net/ooo-thumbnailer>`_, supporting OpenOffice documents
 
 If a lib is not present, vignette continues to operate but thumbnails for certain file formats

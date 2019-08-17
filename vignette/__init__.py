@@ -21,12 +21,18 @@ Thumbnails are not limited to image files on disk but can be managed for other f
 for example videos or documents but also for any URL, for example a web browser could store
 thumbnails for recently visited pages or bookmarks.
 
-`vignette` by itself can only generate thumbnails for local image files but can retrieve
+`vignette` by itself can only generate thumbnails for local files but can retrieve
 thumbnail for any file or URL, if another app generated a thumbnail for it. An app can also
 generate a thumbnail by its own means and use `vignette` to push that thumbnail to the store.
 
 `vignette` has optional support for extra backends like ``ffmpegthumbnailer``, ``poppler-utils``,
-``ooo-thumbnailer``, if these tools are installed.
+``ooo-thumbnailer``, and more, if these tools are installed.
+
+The range of files for which vignette can generate thumbnails depends on plugins
+as it supports third-party libraries and tools. For example, if the
+``evince-thumbnailer`` command is installed, it will be able to generate thumbnails
+for PDF files.
+
 
 Summary of the FreeDesktop standard
 ===================================
