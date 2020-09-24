@@ -21,6 +21,13 @@ as it supports third-party libraries and tools. For example, if the
 evince-thumbnailer command is installed, it will be able to generate thumbnails
 for PDF files.
 
+Install
+=======
+
+From `PyPI <https://pypi.org/project/vignette/>`_::
+
+    pip install vignette
+
 Documentation
 =============
 
