@@ -172,10 +172,10 @@ import tempfile
 
 if sys.version_info.major > 2:
 	from urllib.request import pathname2url
-	from configparser import RawConfigParser
+	from configparser import RawConfigParser, NoOptionError
 else:
 	from urllib import pathname2url
-	from ConfigParser import RawConfigParser
+	from ConfigParser import RawConfigParser, NoOptionError
 
 
 __all__ = (
@@ -896,6 +896,8 @@ class GnomeThumbnailer(CliMixin, ThumbnailBackend):
 		self.accepted_mimes = re.compile('^(?:%s)$' % '|'.join(map(re.escape, mimes)))
 		cmd_exec = re.sub('%([iosu])', r'%(\1)s', cmd_exec)
 		self.cmd_exec = shlex.split(cmd_exec)
+		if not self.cmd:
+			self.cmd = self.cmd_exec[0]
 
 		self.handled_types = set()
 		for mime in mimes:
@@ -934,7 +936,10 @@ def build_gnome_thumbnailers():
 		if not cfg.read(f):
 			continue
 
-		cmd_test = cfg.get(section, 'TryExec')
+		try:
+			cmd_test = cfg.get(section, 'TryExec')
+		except NoOptionError:
+			cmd_test = None
 		cmd_exec = cfg.get(section, 'Exec')
 		mimes = [m for m in cfg.get(section, 'MimeType').split(';') if m]
 		backend = GnomeThumbnailer(cmd_test, cmd_exec, mimes)

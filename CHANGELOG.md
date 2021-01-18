@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Changed
 - default to python 3
+### Fixed
+- "TryExec" key can be missing in gnome-thumbnailer files
 
 ## [4.5.2] - 2019-08-17
 ### Fixed
