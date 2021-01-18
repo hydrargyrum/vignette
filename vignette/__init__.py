@@ -170,12 +170,8 @@ import subprocess
 import sys
 import tempfile
 
-if sys.version_info.major > 2:
-	from urllib.request import pathname2url
-	from configparser import RawConfigParser, NoOptionError
-else:
-	from urllib import pathname2url
-	from ConfigParser import RawConfigParser, NoOptionError
+from urllib.request import pathname2url
+from configparser import RawConfigParser, NoOptionError
 
 
 __all__ = (
@@ -200,9 +196,6 @@ __all__ = (
 	'FILETYPE_DOCUMENT',
 	'FILETYPE_MISC',
 )
-
-if sys.version_info.major == 2:
-	bytes, str = str, unicode
 
 
 KEY_URI = 'Thumb::URI'
@@ -1132,7 +1125,7 @@ def select_thumbnailer_types(types):
 	"""
 	global THUMBNAILER_BACKENDS
 
-	if isinstance(types, (bytes, str)):
+	if isinstance(types, str):
 		types = (types,)
 	THUMBNAILER_BACKENDS = [
 		b for b in ALL_THUMBNAILER_BACKENDS
