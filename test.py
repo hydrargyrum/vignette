@@ -1,14 +1,11 @@
-#!/usr/bin/env python3
+#!/usr/bin/env pytest
 
 import hashlib
-from functools import wraps
-import logging
 import os
 import shutil
-import tempfile
-import unittest
 
 import vignette
+from pytest import fixture, skip
 
 
 ALL_THUMBNAIL = vignette.THUMBNAILER_BACKENDS
@@ -19,145 +16,153 @@ ALL_METADATA = vignette.METADATA_BACKENDS
 AVAIL_METADATA = [b for b in ALL_METADATA if b.is_available()]
 
 
-class ThumbnailTests(unittest.TestCase):
-	def __init__(self, metadata=None, thumbnail=None, *args, **kwargs):
-		super(ThumbnailTests, self).__init__(*args, **kwargs)
-		self.metadata_backends = metadata
-		self.thumbnail_backends = thumbnail
-
-	def setUp(self):
-		self.dir = os.environ['XDG_CACHE_HOME'] = tempfile.mkdtemp()
-		self.filename = os.path.join(os.environ['XDG_CACHE_HOME'], 'test.png')
-		shutil.copyfile('test.png', self.filename)
-
-		if self.metadata_backends is None:
-			vignette.METADATA_BACKENDS = ALL_METADATA
-		else:
-			vignette.METADATA_BACKENDS = self.metadata_backends
-
-		if self.thumbnail_backends is None:
-			vignette.THUMBNAILER_BACKENDS = ALL_THUMBNAIL
-		else:
-			vignette.THUMBNAILER_BACKENDS = self.thumbnail_backends
-
-	def tearDown(self):
-		shutil.rmtree(self.dir)
-
-	def test_hash(self):
-		uri = u'file://%s' % self.filename
-		dest = os.path.join(self.dir, 'thumbnails', 'large', hashlib.md5(uri.encode('utf-8')).hexdigest()) + '.png'
-		self.assertEqual(dest, vignette.build_thumbnail_path(self.filename, 'large'))
-
-	def test_basic(self):
-		dest = vignette.build_thumbnail_path(self.filename, 'large')
-		assert dest
-
-		self.assertIsNone(vignette.try_get_thumbnail(self.filename, 'large'))
-		assert not os.path.exists(dest)
-
-		self.assertEqual(dest, vignette.get_thumbnail(self.filename, 'large'))
-		assert os.path.isfile(dest)
-
-		self.assertEqual(dest, vignette.try_get_thumbnail(self.filename, 'large'))
-
-	def test_reuse_thumbnail(self):
-		dest = vignette.get_thumbnail(self.filename, 'large')
-		assert dest
-		st = os.stat(dest)
-		self.assertEqual(dest, vignette.get_thumbnail(self.filename, 'large'))
-		self.assertEqual(st, os.stat(dest))
-		self.assertEqual(dest, vignette.create_thumbnail(self.filename, 'large'))
-		self.assertNotEqual(st, os.stat(dest))
-
-	def test_direct_thumbnail(self):
-		dest = vignette.get_thumbnail(self.filename, 'large')
-		assert dest
-		assert os.path.isfile(dest)
-		self.assertEqual(dest, vignette.try_get_thumbnail(dest, 'large'))
-
-	def test_mtime_validity(self):
-		dest = vignette.get_thumbnail(self.filename, 'large')
-		assert dest
-
-		os.utime(self.filename, (0, 0))
-		self.assertIsNone(vignette.try_get_thumbnail(self.filename, 'large'))
-		assert os.path.isfile(dest)
-
-		self.assertEqual(dest, vignette.get_thumbnail(self.filename, 'large'))
-		self.assertEqual(dest, vignette.try_get_thumbnail(self.filename, 'large'))
-
-	def test_multisize(self):
-		dest = vignette.get_thumbnail(self.filename, 'large')
-		assert dest
-		self.assertEqual(dest, vignette.try_get_thumbnail(self.filename, 'large'))
-		self.assertIsNone(vignette.try_get_thumbnail(self.filename, 'normal'))
-		self.assertEqual(dest, vignette.try_get_thumbnail(self.filename))
-
-		os.remove(dest)
-		dest = vignette.get_thumbnail(self.filename, 'normal')
-		assert dest
-		self.assertEqual(dest, vignette.try_get_thumbnail(self.filename, 'normal'))
-		self.assertIsNone(vignette.try_get_thumbnail(self.filename, 'large'))
-		self.assertEqual(dest, vignette.try_get_thumbnail(self.filename))
-
-	def test_fail(self):
-		self.filename = os.path.join(self.dir, 'empty')
-		open(self.filename, 'w').close()
-
-		self.assertIsNone(vignette.get_thumbnail(self.filename, 'large'))
-		assert not os.path.exists(os.path.join(self.dir, 'thumbnails', 'fail'))
-		assert not vignette.is_thumbnail_failed(self.filename, 'foo')
-
-		self.assertIsNone(vignette.get_thumbnail(self.filename, 'large', use_fail_appname='foo'))
-		assert os.path.exists(os.path.join(self.dir, 'thumbnails', 'fail', 'foo'))
-		assert vignette.is_thumbnail_failed(self.filename, 'foo')
-		assert not vignette.is_thumbnail_failed(self.filename, 'bar')
-
-	def test_fail_mtime_validity(self):
-		self.filename = os.path.join(self.dir, 'empty')
-		open(self.filename, 'w').close()
-
-		self.assertIsNone(vignette.get_thumbnail(self.filename, 'large', use_fail_appname='foo'))
-		assert vignette.is_thumbnail_failed(self.filename, 'foo')
-
-		os.utime(self.filename, (0, 0))
-		assert not vignette.is_thumbnail_failed(self.filename, 'foo')
-
-	def test_put_thumbnail(self):
-		uri = 'http://example.com'
-		tmp = vignette.create_temp('large')
-		shutil.copyfile(self.filename, tmp)
-		vignette.put_thumbnail(uri, 'large', tmp, mtime=42)
-		assert vignette.try_get_thumbnail(uri, 'large', mtime=42)
-		self.assertIsNone(vignette.try_get_thumbnail(uri, 'large', mtime=1))
-
-	def test_put_fail(self):
-		vignette.put_fail(self.filename, 'foo')
-		assert vignette.is_thumbnail_failed(self.filename, 'foo')
-		assert not vignette.is_thumbnail_failed(self.filename, 'bar')
-
-		self.assertIsNone(vignette.get_thumbnail(self.filename, use_fail_appname='foo'))
-		dest = vignette.get_thumbnail(self.filename, use_fail_appname='bar')
-		assert dest
-		self.assertEqual(dest, vignette.get_thumbnail(self.filename, use_fail_appname='foo'))
+@fixture()
+def workdir(tmp_path):
+	os.environ["XDG_CACHE_HOME"] = str(tmp_path)
+	yield tmp_path
 
 
-class MultiBackendsLoader(unittest.TestLoader):
-	def loadTestsFromTestCase(self, testCaseClass):
-		testCaseNames = self.getTestCaseNames(testCaseClass)
-		tests = []
-		for name in testCaseNames:
-			tests.append(testCaseClass(methodName=name))
-			for b in AVAIL_METADATA:
-				tests.append(testCaseClass(metadata=[b], methodName=name))
-
-			for b in IMAGE_THUMBNAIL:
-				tests.append(testCaseClass(thumbnail=[b], methodName=name))
-
-		loaded_suite = self.suiteClass(tests)
-		return loaded_suite
+@fixture()
+def image_src(workdir):
+	shutil.copyfile("test.png", workdir / "test.png")
+	src = str(workdir / "test.png")
+	yield src
 
 
-if __name__ == '__main__':
-	logging.basicConfig()
-	unittest.main(testLoader=MultiBackendsLoader())
+def get_backend_name(backend):
+	return type(backend).__name__
+
+
+@fixture(params=ALL_METADATA, ids=get_backend_name)
+def metadata_backend(request):
+	if not request.param.is_available():
+		skip(f"{request.param} is not available")
+
+	vignette.METADATA_BACKENDS = [request.param]
+	vignette.THUMBNAILER_BACKENDS = [request.param]
+	yield
+	vignette.METADATA_BACKENDS = ALL_METADATA
+	vignette.THUMBNAILER_BACKENDS = ALL_THUMBNAIL
+
+
+def test_at_least_one_backend():
+	assert any(backend.is_available() for backend in ALL_METADATA)
+
+
+def test_hash(image_src, workdir, metadata_backend):
+	uri = f"file://{image_src}"
+	hash = hashlib.md5(uri.encode("utf-8")).hexdigest()
+	dest = workdir / "thumbnails" / "large" / f"{hash}.png"
+
+	assert str(dest) == vignette.build_thumbnail_path(image_src, "large")
+
+
+def test_basic(image_src, metadata_backend):
+	dest = vignette.build_thumbnail_path(image_src, "large")
+	assert dest
+
+	assert vignette.try_get_thumbnail(image_src, "large") is None
+	assert not os.path.exists(dest)
+
+	assert dest == vignette.get_thumbnail(image_src, "large")
+	assert os.path.isfile(dest)
+
+	assert dest == vignette.try_get_thumbnail(image_src, "large")
+
+
+def test_reuse_thumbnail(image_src, metadata_backend):
+	dest = vignette.get_thumbnail(image_src, "large")
+	assert dest
+
+	st = os.stat(dest)
+	assert dest == vignette.get_thumbnail(image_src, "large")
+	assert st == os.stat(dest)
+	assert dest == vignette.create_thumbnail(image_src, "large")
+	assert st != os.stat(dest)
+
+
+def test_direct_thumbnail(image_src, metadata_backend):
+	dest = vignette.get_thumbnail(image_src, "large")
+	assert dest
+	assert os.path.isfile(dest)
+	assert dest == vignette.try_get_thumbnail(dest, "large")
+
+
+def test_mtime_validity(image_src, metadata_backend):
+	dest = vignette.get_thumbnail(image_src, "large")
+	assert dest
+
+	os.utime(image_src, (0, 0))
+	assert vignette.try_get_thumbnail(image_src, "large") is None
+	assert os.path.isfile(dest)
+
+	assert dest == vignette.get_thumbnail(image_src, "large")
+	assert dest == vignette.try_get_thumbnail(image_src, "large")
+
+
+def test_multisize(image_src, metadata_backend):
+	dest = vignette.get_thumbnail(image_src, "large")
+	assert dest
+	assert dest == vignette.try_get_thumbnail(image_src, "large")
+	assert vignette.try_get_thumbnail(image_src, "normal") is None
+	assert dest == vignette.try_get_thumbnail(image_src)
+
+	os.remove(dest)
+	dest = vignette.get_thumbnail(image_src, "normal")
+	assert dest
+	assert dest == vignette.try_get_thumbnail(image_src, "normal")
+	assert vignette.try_get_thumbnail(image_src, "large") is None
+	assert dest == vignette.try_get_thumbnail(image_src)
+
+
+def test_fail(workdir, metadata_backend):
+	src = workdir / "empty"
+	src.touch()
+	src = str(src)
+
+	assert vignette.get_thumbnail(src, "large") is None
+	assert not (workdir / "thumbnails" / "fail").exists()
+	assert not vignette.is_thumbnail_failed(src, "foo")
+
+	assert vignette.get_thumbnail(src, "large", use_fail_appname="foo") is None
+	assert (workdir / "thumbnails" / "fail" / "foo").exists()
+	assert vignette.is_thumbnail_failed(src, "foo")
+	assert not vignette.is_thumbnail_failed(src, "bar")
+
+
+def test_fail_mtime_validity(workdir, metadata_backend):
+	src = workdir / "empty"
+	src.touch()
+	src = str(src)
+
+	assert vignette.get_thumbnail(src, "large", use_fail_appname="foo") is None
+	assert vignette.is_thumbnail_failed(src, "foo")
+
+	os.utime(src, (0, 0))
+	assert not vignette.is_thumbnail_failed(src, "foo")
+
+
+def test_put_thumbnail(image_src, metadata_backend):
+	uri = "http://example.com"
+	tmp = vignette.create_temp("large")
+	shutil.copyfile(image_src, tmp)
+	vignette.put_thumbnail(uri, "large", tmp, mtime=42)
+	assert vignette.try_get_thumbnail(uri, "large", mtime=42)
+	assert vignette.try_get_thumbnail(uri, "large", mtime=1) is None
+
+
+def test_put_fail(image_src, metadata_backend):
+	# force a "failure"
+	vignette.put_fail(image_src, "foo")
+
+	assert vignette.is_thumbnail_failed(image_src, "foo")
+	assert not vignette.is_thumbnail_failed(image_src, "bar")
+	# check the failure is found instead of creating a thumbnail
+	assert vignette.get_thumbnail(image_src, use_fail_appname="foo") is None
+
+	# create the thumbnail
+	dest = vignette.get_thumbnail(image_src, use_fail_appname="bar")
+	assert dest
+
+	# check the failure is now ignored
+	assert dest == vignette.get_thumbnail(image_src, use_fail_appname="foo")
