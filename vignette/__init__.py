@@ -817,9 +817,11 @@ class QtBackend(MetadataBackend, ThumbnailBackend):
 
 	def create_thumbnail(self, src, dest, size):
 		from PyQt5.QtCore import Qt
-		from PyQt5.QtGui import QImage
+		from PyQt5.QtGui import QImageReader
 
-		img = QImage(str(src))
+		img_reader = QImageReader(str(src))
+		img_reader.setAutoTransform(True)
+		img = img_reader.read()
 		if img.isNull():
 			return
 
