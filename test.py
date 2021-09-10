@@ -2,6 +2,7 @@
 
 import hashlib
 import os
+from pathlib import Path
 import shutil
 
 import vignette
@@ -15,6 +16,8 @@ IMAGE_THUMBNAIL = [b for b in IMAGE_THUMBNAIL if b.is_available()]
 ALL_METADATA = vignette.METADATA_BACKENDS
 AVAIL_METADATA = [b for b in ALL_METADATA if b.is_available()]
 
+SAMPLES_PATH = Path(__file__).parent / "samples"
+
 
 @fixture()
 def workdir(tmp_path):
@@ -24,7 +27,7 @@ def workdir(tmp_path):
 
 @fixture()
 def image_src(workdir):
-	shutil.copyfile("test.png", workdir / "test.png")
+	shutil.copyfile(SAMPLES_PATH / "checkerboard.png", workdir / "test.png")
 	src = str(workdir / "test.png")
 	yield src
 
@@ -166,3 +169,24 @@ def test_put_fail(image_src, metadata_backend):
 
 	# check the failure is now ignored
 	assert dest == vignette.get_thumbnail(image_src, use_fail_appname="foo")
+
+
+def test_orientation(workdir, metadata_backend):
+	try:
+		import PIL.Image
+	except ImportError:
+		skip("the test requires PIL")
+
+	correct_src = SAMPLES_PATH / "rose.jpg"
+	oriented_src = SAMPLES_PATH / "rose-oriented.jpg"
+
+	shutil.copy(correct_src, workdir)
+	shutil.copy(oriented_src, workdir)
+
+	correct_dst = vignette.get_thumbnail(str(correct_src))
+	correct_img = PIL.Image.open(correct_dst)
+
+	oriented_dst = vignette.get_thumbnail(str(oriented_src))
+	oriented_img = PIL.Image.open(oriented_dst)
+
+	assert correct_img.size == oriented_img.size
