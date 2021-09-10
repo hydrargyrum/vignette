@@ -210,3 +210,14 @@ def test_orientation(workdir, metadata_backend):
 	oriented_img = PIL.Image.open(oriented_dst)
 
 	assert correct_img.size == oriented_img.size
+
+
+def test_moreinfo(image_src, metadata_backend):
+	require_pil()
+	import PIL.Image
+
+	dest = vignette.create_thumbnail(image_src, "large", moreinfo={"foo": "bar"})
+	assert dest
+	info = PIL.Image.open(dest).info
+
+	assert info["foo"] == "bar"

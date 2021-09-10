@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - "TryExec" key can be missing in gnome-thumbnailer files
 - PilBackend: fix bad original size saved in thumbnail metadata
+- extra metadata passed to create_thumbnail is not ignored anymore
 
 ## [4.5.2] - 2019-08-17
 ### Fixed

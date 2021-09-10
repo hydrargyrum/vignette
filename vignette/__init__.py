@@ -1005,8 +1005,9 @@ def create_thumbnail(src, size, moreinfo=None, use_fail_appname=None):
 		if FILTER_MIMETYPES and not backend.is_accepted(src):
 			continue
 
-		moreinfo = backend.create_thumbnail(src, tmp, size)
-		if moreinfo is not None:
+		backend_moreinfo = backend.create_thumbnail(src, tmp, size)
+		if backend_moreinfo is not None:
+			moreinfo = dict(moreinfo or (), **backend_moreinfo)
 			moreinfo = _info_dict(moreinfo, src=src)
 			mtime = moreinfo[KEY_MTIME]
 
