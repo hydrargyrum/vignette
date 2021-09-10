@@ -548,10 +548,14 @@ class PilBackend(MetadataBackend, ThumbnailBackend):
 		return outinfo
 
 	def create_thumbnail(self, src, dest, size):
+		import PIL.ImageOps
+
 		try:
 			img = self.mod.open(src)
 		except IOError:
 			return None
+
+		img = PIL.ImageOps.exif_transpose(img)
 
 		mtime = _any2mtime(src)
 
