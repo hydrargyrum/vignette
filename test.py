@@ -48,6 +48,13 @@ def metadata_backend(request):
 	vignette.THUMBNAILER_BACKENDS = ALL_THUMBNAIL
 
 
+def require_pil():
+	try:
+		import PIL.Image
+	except ImportError:
+		skip("the test requires PIL for checking correctness")
+
+
 def test_at_least_one_backend():
 	assert any(backend.is_available() for backend in ALL_METADATA)
 
@@ -58,6 +65,21 @@ def test_hash(image_src, workdir, metadata_backend):
 	dest = workdir / "thumbnails" / "large" / f"{hash}.png"
 
 	assert str(dest) == vignette.build_thumbnail_path(image_src, "large")
+
+
+def test_metadata(image_src, metadata_backend):
+	require_pil()
+	import PIL.Image
+
+	dest = vignette.create_thumbnail(image_src, "large")
+
+	assert dest
+	info = PIL.Image.open(dest).info
+	assert info["Thumb::URI"] == f"file://{image_src}"
+	assert str(int(os.path.getmtime(image_src))) == info["Thumb::MTime"]
+	assert "512" == info["Thumb::Image::Width"]
+	assert "512" == info["Thumb::Image::Height"]
+	assert str(os.path.getsize(image_src)) == info["Thumb::Size"]
 
 
 def test_basic(image_src, metadata_backend):
@@ -172,10 +194,8 @@ def test_put_fail(image_src, metadata_backend):
 
 
 def test_orientation(workdir, metadata_backend):
-	try:
-		import PIL.Image
-	except ImportError:
-		skip("the test requires PIL")
+	require_pil()
+	import PIL.Image
 
 	correct_src = SAMPLES_PATH / "rose.jpg"
 	oriented_src = SAMPLES_PATH / "rose-oriented.jpg"

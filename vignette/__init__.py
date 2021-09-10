@@ -559,14 +559,15 @@ class PilBackend(MetadataBackend, ThumbnailBackend):
 
 		mtime = _any2mtime(src)
 
+		original_size = img.size
 		img.thumbnail((size, size), self.mod.ANTIALIAS)
 
 		img.save(dest)
 		img.close()
 		return {
 			KEY_MTIME: mtime,
-			KEY_WIDTH: str(img.size[0]),
-			KEY_HEIGHT: str(img.size[1]),
+			KEY_WIDTH: str(original_size[0]),
+			KEY_HEIGHT: str(original_size[1]),
 		}
 
 	def create_fail(self, dest, moreinfo=None):
