@@ -55,6 +55,16 @@ def require_pil():
 		skip("the test requires PIL for checking correctness")
 
 
+def get_metadata(path):
+	import PIL.Image
+
+	img = PIL.Image.open(path)
+	# PIL might not load all metadata without load()
+	# in particular, images saved with the magickbackend
+	img.load()
+	return img.info
+
+
 def test_at_least_one_backend():
 	assert any(backend.is_available() for backend in ALL_METADATA)
 
@@ -69,12 +79,11 @@ def test_hash(image_src, workdir, metadata_backend):
 
 def test_metadata(image_src, metadata_backend):
 	require_pil()
-	import PIL.Image
 
 	dest = vignette.create_thumbnail(image_src, "large")
 
 	assert dest
-	info = PIL.Image.open(dest).info
+	info = get_metadata(dest)
 	assert info["Thumb::URI"] == f"file://{image_src}"
 	assert str(int(os.path.getmtime(image_src))) == info["Thumb::MTime"]
 	assert "512" == info["Thumb::Image::Width"]
@@ -214,12 +223,11 @@ def test_orientation(workdir, metadata_backend):
 
 def test_moreinfo(image_src, metadata_backend):
 	require_pil()
-	import PIL.Image
 
 	moreinfo = {"foo": "bar", "Thumb::URI": "bad", "Thumb::MTime": "bad"}
 	dest = vignette.create_thumbnail(image_src, "large", moreinfo=moreinfo)
 	assert dest
-	info = PIL.Image.open(dest).info
+	info = get_metadata(dest)
 
 	assert info["foo"] == "bar"
 	assert info["Thumb::URI"] != "bad"
