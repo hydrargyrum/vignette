@@ -280,12 +280,12 @@ def _info_dict(d, mtime=None, filesize=None, src=None):
 		d[k] = str(d[k])
 
 	if mtime is not None:
-		d.setdefault(KEY_MTIME, str(int(mtime)))
+		d[KEY_MTIME] = str(int(mtime))
 	if filesize is not None:
-		d.setdefault(KEY_SIZE, str(filesize))
+		d[KEY_SIZE] = str(filesize)
 
 	if src is not None:
-		d.setdefault(KEY_URI, _any2uri(src))
+		d[KEY_URI] = _any2uri(src)
 
 		try:
 			if KEY_MTIME not in d:

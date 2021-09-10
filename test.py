@@ -216,8 +216,11 @@ def test_moreinfo(image_src, metadata_backend):
 	require_pil()
 	import PIL.Image
 
-	dest = vignette.create_thumbnail(image_src, "large", moreinfo={"foo": "bar"})
+	moreinfo = {"foo": "bar", "Thumb::URI": "bad", "Thumb::MTime": "bad"}
+	dest = vignette.create_thumbnail(image_src, "large", moreinfo=moreinfo)
 	assert dest
 	info = PIL.Image.open(dest).info
 
 	assert info["foo"] == "bar"
+	assert info["Thumb::URI"] != "bad"
+	assert info["Thumb::MTime"] != "bad"
