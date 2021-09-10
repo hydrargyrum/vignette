@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Changed
 - become python3-only
+- MagickBackend: for image files, add width/height info in thumbnail
 
 ### Fixed
 - "TryExec" key can be missing in gnome-thumbnailer files

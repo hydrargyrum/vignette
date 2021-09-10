@@ -636,13 +636,17 @@ class MagickBackend(MetadataBackend, ThumbnailBackend):
 		except RuntimeError:
 			return
 
+		original_geom = img.size()
 		mtime = _any2mtime(src)
+
 		geom = self.mod.Geometry(size, size)
 		img.resize(geom)
 		img.write(self.encode(dest))
 
 		return {
 			KEY_MTIME: mtime,
+			KEY_WIDTH: original_geom.width(),
+			KEY_HEIGHT: original_geom.height(),
 		}
 
 	def update_metadata(self, dest, moreinfo=None):
