@@ -129,4 +129,4 @@ Version
 
 .. $version
 
-Vignette is currently at version 4.5.2 and uses `Semantic Versioning <http://semver.org/>`_.
+Vignette is currently at version 5.0.0 and uses `Semantic Versioning <http://semver.org/>`_.
