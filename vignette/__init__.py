@@ -630,6 +630,27 @@ class MagickBackend(MetadataBackend, ThumbnailBackend):
 			k = str(k).encode('utf-8')
 			img.attribute(k, v)
 
+	orientation_rotate = {
+		3: 180,
+		4: 180,
+		5: +90,
+		6: +90,
+		7: -90,
+		8: -90,
+	}
+	should_flop = {2, 4, 5, 7}
+
+	@classmethod
+	def reorient_image(cls, img):
+		try:
+			orientation = int(img.attribute("EXIF:Orientation"))
+		except ValueError:
+			return
+
+		img.rotate(cls.orientation_rotate.get(orientation, 0))
+		if orientation in cls.should_flop:
+			img.flop()
+
 	def create_thumbnail(self, src, dest, size):
 		try:
 			img = self.mod.Image(self.encode(src))
@@ -640,6 +661,7 @@ class MagickBackend(MetadataBackend, ThumbnailBackend):
 		mtime = _any2mtime(src)
 
 		geom = self.mod.Geometry(size, size)
+		self.reorient_image(img)
 		img.resize(geom)
 		img.write(self.encode(dest))
 
