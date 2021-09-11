@@ -243,10 +243,18 @@ def _any2size(size):
 		return (128, 'normal')
 	elif size in ('large', 256, '256'):
 		return (256, 'large')
+	elif size in ('x-large', 512, '512'):
+		return (512, 'x-large')
+	elif size in ('xx-large', 1024, '1024'):
+		return (1024, 'xx-large')
 	elif 0 < size <= 128:
 		return 128
 	elif 128 < size <= 256:
 		return 256
+	elif 256 < size <= 512:
+		return 512
+	elif 512 < size <= 1024:
+		return 1024
 
 	raise ValueError('unsupported size: %r' % size)
 
