@@ -230,6 +230,14 @@ KEY_MOVIE_LENGTH = 'Thumb::Movie::Length'
 
 """Optional thumbnail metadata key for source video duration (in seconds)."""
 
+KEY_SOFTWARE = "Software"
+
+"""Optional thumbnail metadata key for software creating the thumbnail.
+
+If not set, appname for fail-files will be used.
+If this too is unset, "vignette-{version}" is used.
+"""
+
 
 VERSION = '4.5.2'  # $version
 
@@ -291,6 +299,8 @@ def _info_dict(d, mtime=None, filesize=None, src=None):
 		d[KEY_MTIME] = str(int(mtime))
 	if filesize is not None:
 		d[KEY_SIZE] = str(filesize)
+
+	d.setdefault(KEY_SOFTWARE, f"vignette-{__version__}")
 
 	if src is not None:
 		d[KEY_URI] = _any2uri(src)
