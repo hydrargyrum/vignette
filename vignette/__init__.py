@@ -583,14 +583,25 @@ class PilBackend(MetadataBackend, ThumbnailBackend):
 	def get_info(self, path):
 		try:
 			img = self.mod.open(path)
-			mtime = int(float(img.info[KEY_MTIME]))
+			uri = img.info[KEY_URI]
+		except OSError:
+			return
+		except KeyError:
+			try:
+				# PIL might not load all metadata without load()
+				# in particular, images saved with the magickbackend
+				img.load()
+				uri = img.info[KEY_URI]
+			except (OSError, KeyError):
+				return
 
+		try:
 			res = {
-				'mtime': mtime,
-				'uri': img.info[KEY_URI],
+				'mtime': int(float(img.info[KEY_MTIME])),
+				'uri': uri,
 			}
 			img.close()
-		except (OSError, IOError, KeyError, ValueError):
+		except (OSError, KeyError, ValueError):
 			return
 		else:
 			return res
