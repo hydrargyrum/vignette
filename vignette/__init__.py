@@ -1065,6 +1065,9 @@ def create_thumbnail(src, size, moreinfo=None, use_fail_appname=None):
 		backend_moreinfo = backend.create_thumbnail(src, tmp, size)
 		if backend_moreinfo is not None:
 			moreinfo = dict(moreinfo or (), **backend_moreinfo)
+
+			if use_fail_appname is not None:
+				moreinfo.setdefault(KEY_SOFTWARE, use_fail_appname)
 			moreinfo = _info_dict(moreinfo, src=src)
 			mtime = moreinfo[KEY_MTIME]
 
