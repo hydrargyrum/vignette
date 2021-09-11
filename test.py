@@ -91,6 +91,41 @@ def test_metadata(image_src, metadata_backend):
 	assert str(os.path.getsize(image_src)) == info["Thumb::Size"]
 
 
+def test_dont_expand(workdir, metadata_backend):
+	require_pil()
+	import PIL.Image
+
+	src_path = SAMPLES_PATH / "rose.jpg"
+
+	shutil.copy(src_path, workdir)
+
+	thumb_path = vignette.get_thumbnail(str(src_path))
+	thumb_img = PIL.Image.open(thumb_path)
+
+	assert thumb_img.size == (70, 46)
+
+
+def test_shrink(image_src, metadata_backend):
+	require_pil()
+	import PIL.Image
+
+	thumb_path = vignette.get_thumbnail(str(image_src))
+	thumb_img = PIL.Image.open(thumb_path)
+	assert thumb_img.size == (256, 256)
+
+	thumb_path = vignette.get_thumbnail(str(image_src), size="normal")
+	thumb_img = PIL.Image.open(thumb_path)
+	assert thumb_img.size == (128, 128)
+
+	thumb_path = vignette.get_thumbnail(str(image_src), size="x-large")
+	thumb_img = PIL.Image.open(thumb_path)
+	assert thumb_img.size == (512, 512)
+
+	thumb_path = vignette.get_thumbnail(str(image_src), size="xx-large")
+	thumb_img = PIL.Image.open(thumb_path)
+	assert thumb_img.size == (512, 512)
+
+
 def test_basic(image_src, metadata_backend):
 	dest = vignette.build_thumbnail_path(image_src, "large")
 	assert dest

@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - extra metadata passed to create_thumbnail is not ignored anymore
 - for image source files, EXIF orientation is respected when creating thumbnail
 - PilBackend: try to fully load thumbnail in case of attribute not found
+- MagickBackend/QtBackend: don't expand images bigger than thumbnail size
 
 ## [4.5.2] - 2019-08-17
 ### Fixed

@@ -679,9 +679,10 @@ class MagickBackend(MetadataBackend, ThumbnailBackend):
 		original_geom = img.size()
 		mtime = _any2mtime(src)
 
-		geom = self.mod.Geometry(size, size)
 		self.reorient_image(img)
-		img.resize(geom)
+		if original_geom.width() > size or original_geom.height() > size:
+			geom = self.mod.Geometry(size, size)
+			img.resize(geom)
 		img.write(self.encode(dest))
 
 		return {
@@ -881,7 +882,8 @@ class QtBackend(MetadataBackend, ThumbnailBackend):
 			KEY_HEIGHT: img.height(),
 		}
 
-		img = img.scaled(size, size, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+		if img.width() > size or img.height() > size:
+			img = img.scaled(size, size, Qt.KeepAspectRatio, Qt.SmoothTransformation)
 
 		img.save(dest)
 		return res
