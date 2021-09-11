@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Added
 - support new x-large (512px) and xx-large (1024px) sizes from standard
+- cli: support "-n" arg to return a thumbnail only if it already exists
 
 ### Changed
 - become python3-only

@@ -1189,7 +1189,12 @@ def select_thumbnailer_types(types):
 
 
 def main():
-	output = get_thumbnail(sys.argv[1])
+	func = get_thumbnail
+	if sys.argv[1] == "-n":
+		del sys.argv[1]
+		func = try_get_thumbnail
+
+	output = func(sys.argv[1])
 	if output is None:
 		return 1
 	print(output)
