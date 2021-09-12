@@ -161,6 +161,7 @@ from __future__ import unicode_literals
 
 from glob import glob
 import hashlib
+import logging
 import mimetypes
 import os
 import re
@@ -244,6 +245,9 @@ VERSION = '5.0.0'  # $version
 """Version of the vignette library."""
 
 __version__ = VERSION
+
+
+LOGGER = logging.getLogger("vignette")
 
 
 def _any2size(size):
@@ -442,6 +446,7 @@ def put_thumbnail(src, size, thumb, mtime=None, moreinfo=None):
 
 	moreinfo = _info_dict(moreinfo, mtime=mtime, src=src)
 	if not get_metadata_backend().update_metadata(tmp, moreinfo):
+		LOGGER.error("backend could not update metadata for %s", tmp)
 		return
 
 	os.chmod(tmp, 0o600)
@@ -1032,13 +1037,20 @@ def create_thumbnail(src, size, moreinfo=None, use_fail_appname=None):
 
 	for backend in iter_thumbnail_backends():
 		if FILTER_MIMETYPES and not backend.is_accepted(src):
+			LOGGER.debug("backend %r does not accept %r", backend, src)
 			continue
 
 		try:
 			backend_moreinfo = backend.create_thumbnail(src, tmp, size)
 		except Exception:
+			LOGGER.warning(
+				"backend %r failed to create a thumbnail of %r", backend, src, exc_info=True,
+			)
 			continue
 
+		if backend_moreinfo is None:
+			LOGGER.warning("backend %r could not create a thumbnail of %r", backend, src)
+		else:
 			moreinfo = dict(moreinfo or (), **backend_moreinfo)
 
 			if use_fail_appname is not None:
@@ -1050,6 +1062,7 @@ def create_thumbnail(src, size, moreinfo=None, use_fail_appname=None):
 			if dest:
 				return dest
 
+	LOGGER.warning("no backend could create a thumbnail of %r", src)
 	if use_fail_appname is not None:
 		put_fail(src, use_fail_appname)
 
@@ -1154,6 +1167,7 @@ def get_thumbnail(src, size=None, use_fail_appname=None):
 
 	if size is None:
 		size = 'large'
+	LOGGER.debug("no existing thumbnail for %r, creating one", src)
 	return create_thumbnail(src, size, use_fail_appname=use_fail_appname)
 
 
