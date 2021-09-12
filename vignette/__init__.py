@@ -568,11 +568,7 @@ class PilBackend(MetadataBackend, ThumbnailBackend):
 	def create_thumbnail(self, src, dest, size):
 		import PIL.ImageOps
 
-		try:
-			img = self.mod.open(src)
-		except IOError:
-			return None
-
+		img = self.mod.open(src)
 		img = PIL.ImageOps.exif_transpose(img)
 
 		mtime = _any2mtime(src)
@@ -681,10 +677,7 @@ class MagickBackend(MetadataBackend, ThumbnailBackend):
 			img.flop()
 
 	def create_thumbnail(self, src, dest, size):
-		try:
-			img = self.mod.Image(self.encode(src))
-		except RuntimeError:
-			return
+		img = self.mod.Image(self.encode(src))
 
 		original_geom = img.size()
 		mtime = _any2mtime(src)
@@ -755,10 +748,7 @@ class PopplerCliBackend(CliMixin, ThumbnailBackend):
 	def create_thumbnail(self, src, dest, size):
 		prefix, _ = os.path.splitext(dest)
 		args = [self.cmd, '-png', '-singlefile', '-scale-to', str(size), src, prefix]
-		try:
-			subprocess.check_call(args)
-		except subprocess.CalledProcessError:
-			return
+		subprocess.check_call(args)
 		return {}
 
 
@@ -769,12 +759,9 @@ class OooCliBackend(CliMixin, ThumbnailBackend):
 
 	def create_thumbnail(self, src, dest, size):
 		args = [self.cmd, src, dest, str(size)]
-		try:
-			subprocess.check_call(args)
-		except subprocess.CalledProcessError:
-			return
+		subprocess.check_call(args)
 		if not (os.path.exists(dest) and os.path.getsize(dest)):
-			return
+			raise Exception("empty or non-existing output thumbnail")
 		return {}
 
 
@@ -790,12 +777,9 @@ class EvinceCliBackend(CliMixin, ThumbnailBackend):
 
 	def create_thumbnail(self, src, dest, size):
 		args = [self.cmd, '-s', str(size), src, dest]
-		try:
-			subprocess.check_call(args)
-		except subprocess.CalledProcessError:
-			return
+		subprocess.check_call(args)
 		if not (os.path.exists(dest) and os.path.getsize(dest)):
-			return
+			raise Exception("empty or non-existing output thumbnail")
 		return {}
 
 
@@ -810,12 +794,9 @@ class ExeCliBackend(CliMixin, ThumbnailBackend):
 
 	def create_thumbnail(self, src, dest, size):
 		args = [self.cmd, src, dest, 'this://is.invalid']
-		try:
-			subprocess.check_call(args)
-		except subprocess.CalledProcessError:
-			return
+		subprocess.check_call(args)
 		if not (os.path.exists(dest) and os.path.getsize(dest)):
-			return
+			raise Exception("empty or non-existing output thumbnail")
 		return {}
 
 
@@ -825,10 +806,7 @@ class OggThumbCliBackend(CliMixin, ThumbnailBackend):
 	cmd = 'oggThumb'
 
 	def create_thumbnail(self, src, dest, size):
-		try:
-			len_ms = int(subprocess.check_output(['oggLength', src]).strip())
-		except subprocess.CalledProcessError:
-			return
+		len_ms = int(subprocess.check_output(['oggLength', src]).strip())
 
 		args = [
 			self.cmd,
@@ -838,12 +816,9 @@ class OggThumbCliBackend(CliMixin, ThumbnailBackend):
 			'-s', '%{0}x%{0}'.format(size),
 			src,
 		]
-		try:
-			subprocess.check_call(args)
-		except subprocess.CalledProcessError:
-			return
+		subprocess.check_call(args)
 		if not (os.path.exists(dest) and os.path.getsize(dest)):
-			return
+			raise Exception("empty or non-existing output thumbnail")
 		return {
 			KEY_MOVIE_LENGTH: str(len_ms) / 1000,
 		}
@@ -884,7 +859,7 @@ class QtBackend(MetadataBackend, ThumbnailBackend):
 		img_reader.setAutoTransform(True)
 		img = img_reader.read()
 		if img.isNull():
-			return
+			raise Exception("could not read image: %s" % img_reader.errorString())
 
 		res = {
 			KEY_MTIME: _any2mtime(src),
@@ -974,12 +949,9 @@ class GnomeThumbnailer(CliMixin, ThumbnailBackend):
 			's': str(size),
 		}
 		args = [arg % vars for arg in self.cmd_exec]
-		try:
-			subprocess.check_call(args)
-		except subprocess.CalledProcessError:
-			return
+		subprocess.check_call(args)
 		if not (os.path.exists(dest) and os.path.getsize(dest)):
-			return
+			raise Exception("empty or non-existing output thumbnail")
 		return {}
 
 
@@ -1062,8 +1034,11 @@ def create_thumbnail(src, size, moreinfo=None, use_fail_appname=None):
 		if FILTER_MIMETYPES and not backend.is_accepted(src):
 			continue
 
-		backend_moreinfo = backend.create_thumbnail(src, tmp, size)
-		if backend_moreinfo is not None:
+		try:
+			backend_moreinfo = backend.create_thumbnail(src, tmp, size)
+		except Exception:
+			continue
+
 			moreinfo = dict(moreinfo or (), **backend_moreinfo)
 
 			if use_fail_appname is not None:
