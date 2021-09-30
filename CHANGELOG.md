@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - MagickBackend: for image files, add width/height info in thumbnail
 
 ### Removed
-- dropped python3 support
+- dropped python2 support
 
 ### Fixed
 - "TryExec" key can be missing in gnome-thumbnailer files
