@@ -579,7 +579,7 @@ class PilBackend(MetadataBackend, ThumbnailBackend):
 		mtime = _any2mtime(src)
 
 		original_size = img.size
-		img.thumbnail((size, size), self.mod.ANTIALIAS)
+		img.thumbnail((size, size), self.mod.LANCZOS)
 
 		img.save(dest)
 		img.close()
