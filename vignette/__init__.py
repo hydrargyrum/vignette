@@ -133,7 +133,7 @@ that this module can't do itself::
 
   import vignette
 
-  orig_url = 'http://example.com/file.pdf'
+  orig_url = 'https://example.com/file.pdf'
   thumb_image = vignette.try_get_thumbnail(orig_url, mtime=0) # mtime is not used in this example
 
   if not thumb_image:

@@ -61,7 +61,7 @@ Ask for a thumbnail or generate it manually, for example a web-browser generatin
 
   import vignette
 
-  orig_url = 'http://example.com/file.pdf'
+  orig_url = 'https://example.com/file.pdf'
   thumb_image = vignette.try_get_thumbnail(orig_url, mtime=0) # mtime is not used in this example
 
   if not thumb_image:
@@ -129,4 +129,4 @@ Version
 
 .. $version
 
-Vignette is currently at version 5.0.0 and uses `Semantic Versioning <http://semver.org/>`_.
+Vignette is currently at version 5.0.0 and uses `Semantic Versioning <https://semver.org/>`_.

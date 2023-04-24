@@ -212,7 +212,7 @@ def test_fail_mtime_validity(workdir, metadata_backend):
 
 
 def test_put_thumbnail(image_src, metadata_backend):
-	uri = "http://example.com"
+	uri = "https://example.com"
 	tmp = vignette.create_temp("large")
 	shutil.copyfile(image_src, tmp)
 	vignette.put_thumbnail(uri, "large", tmp, mtime=42)
