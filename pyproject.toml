@@ -1,0 +1,87 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "vignette"
+dynamic = ["version"]
+description = "Library to create FreeDesktop-compatible thumbnails"
+readme = "description.txt"
+license = "WTFPL"
+requires-python = ">=3.6"
+
+keywords = [
+    "cache",
+    "freedesktop",
+    "image",
+    "thumbnail",
+    "thumbnails",
+    "xdg",
+]
+dependencies = [
+    "python-magic",
+]
+
+classifiers = [
+	"Development Status :: 4 - Beta",
+	"Intended Audience :: Developers",
+	"License :: Public Domain",
+	"Topic :: Desktop Environment",
+	"Topic :: Multimedia :: Graphics",
+	"Topic :: Software Development :: Libraries :: Python Modules",
+	"Topic :: Utilities",
+	"Programming Language :: Python :: 3",
+	"Programming Language :: Python :: 3.6",
+	"Programming Language :: Python :: 3.7",
+	"Programming Language :: Python :: 3.8",
+	"Programming Language :: Python :: 3.9",
+	"Programming Language :: Python :: 3.10",
+	"Programming Language :: Python :: 3.11",
+]
+
+[[project.authors]]
+name = "Hg"
+email = "dev@indigo.re"
+
+[project.optional-dependencies]
+pillow = [
+    "Pillow",
+]
+pythonmagick = [
+    "PythonMagick",
+]
+pyqt6 = [
+    "PyQt6",
+]
+
+[project.scripts]
+vignette = "vignette:main"
+
+[project.urls]
+Homepage = "https://gitlab.com/hydrargyrum/vignette"
+Documentation = "https://vignette.readthedocs.io/"
+
+[tool.hatch.version]
+path = "vignette/__init__.py"
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/vignette",
+    "/README.rst",
+]
+
+[tool.hatch.envs.test]
+dependencies = [
+    "pytest"
+]
+
+[tool.hatch.envs.test.scripts]
+test = "pytest"
+
+[tool.pytest.ini_options]
+python_files = ["test.py"]
+
+[tool.hatch.envs.docs]
+dependencies = [
+    "Sphinx"
+]
