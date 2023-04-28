@@ -919,6 +919,96 @@ class QtBackend(MetadataBackend, ThumbnailBackend):
 			return
 
 
+class Qt6Backend(MetadataBackend, ThumbnailBackend):
+	handled_types = frozenset([FILETYPE_IMAGE])
+	_accepted_mimes = None
+
+	@classmethod
+	def is_available(cls):
+		try:
+			from PyQt6.QtGui import QImageReader
+		except (ImportError, RuntimeError):
+			return False
+		return True
+
+	@property
+	def accepted_mimes(self):
+		if self._accepted_mimes is None:
+			from PyQt6.QtGui import QImageReader
+
+			mimes = [bytes(ba).decode('ascii') for ba in QImageReader.supportedMimeTypes()]
+			self._accepted_mimes = re.compile('^(?:%s)$' % '|'.join(map(re.escape, mimes)))
+
+		return self._accepted_mimes
+
+	@staticmethod
+	def setattributes(img, moreinfo):
+		for k in moreinfo or {}:
+			img.setText(k, moreinfo[k])
+
+	def create_thumbnail(self, src, dest, size):
+		from PyQt6.QtCore import Qt
+		from PyQt6.QtGui import QImageReader
+
+		img_reader = QImageReader(str(src))
+		img_reader.setAutoTransform(True)
+		img = img_reader.read()
+		if img.isNull():
+			raise Exception("could not read image: %s" % img_reader.errorString())
+
+		res = {
+			KEY_MTIME: _any2mtime(src),
+			KEY_WIDTH: img.width(),
+			KEY_HEIGHT: img.height(),
+		}
+
+		if img.width() > size or img.height() > size:
+			img = img.scaled(size, size, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+
+		img.save(dest)
+		return res
+
+	def update_metadata(self, dest, moreinfo=None):
+		from PyQt6.QtGui import QImage
+
+		img = QImage(dest)
+		if img.isNull():
+			return
+
+		self.setattributes(img, moreinfo)
+
+		tmp = _mkstemp(dest)
+		img.save(tmp)
+		os.rename(tmp, dest)
+		return dest
+
+	def create_fail(self, dest, moreinfo=None):
+		from PyQt6.QtGui import QImage
+
+		img = QImage(1, 1, QImage.Format.Format_RGB32)
+		self.setattributes(img, moreinfo)
+
+		tmp = _mkstemp(dest)
+		img.save(tmp)
+		os.rename(tmp, dest)
+		return dest
+
+	def get_info(self, path):
+		from PyQt6.QtGui import QImage
+
+		img = QImage(path)
+		if img.isNull():
+			return
+
+		try:
+			return {
+				'mtime': int(float(img.text(KEY_MTIME) or 0)),
+				'uri': img.text(KEY_URI),
+			}
+		except ValueError:
+			return
+
+
 class GnomeThumbnailer(CliMixin, ThumbnailBackend):
 	mime_to_handle = {
 		re.compile('^image/'): FILETYPE_IMAGE,
@@ -980,14 +1070,21 @@ def build_gnome_thumbnailers():
 		yield backend
 
 
-METADATA_BACKENDS = [QtBackend(), PilBackend(), MagickBackend()]
+_QT_BACKENDS = {6: Qt6Backend(), 5: QtBackend()}
+_QT_PREFERRED = (
+	_QT_BACKENDS[6]
+	if (_QT_BACKENDS[6].is_available() or not _QT_BACKENDS[5].is_available())
+	else _QT_BACKENDS[5]
+)
+
+METADATA_BACKENDS = [_QT_PREFERRED, PilBackend(), MagickBackend()]
 
 ALL_THUMBNAILER_BACKENDS = [
 	OooCliBackend(),
 	PopplerCliBackend(),
 	EvinceCliBackend(),
 	AtrilCliBackend(),
-	QtBackend(),
+	_QT_PREFERRED,
 	PilBackend(),
 	MagickBackend()
 ]
