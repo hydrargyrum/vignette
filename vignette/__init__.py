@@ -240,7 +240,7 @@ If this too is unset, "vignette-{version}" is used.
 """
 
 
-VERSION = '5.0.0'  # $version
+VERSION = '5.1.0'  # $version
 
 """Version of the vignette library."""
 
