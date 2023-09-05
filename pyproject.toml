@@ -45,7 +45,7 @@ email = "dev@indigo.re"
 
 [project.optional-dependencies]
 pillow = [
-    "Pillow",
+    "Pillow>=6.0",
 ]
 pythonmagick = [
     "PythonMagick",

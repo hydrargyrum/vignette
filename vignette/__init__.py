@@ -554,7 +554,10 @@ class PilBackend(MetadataBackend, ThumbnailBackend):
 		try:
 			import PIL.Image
 			import PIL.PngImagePlugin
+			import PIL.ImageOps
 		except ImportError:
+			return False
+		if not hasattr(PIL.ImageOps, 'exif_transpose'):
 			return False
 
 		cls.mod = PIL.Image

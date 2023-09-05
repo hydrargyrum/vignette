@@ -101,7 +101,7 @@ Backends are divided in 2 types:
 
 Vignette currently has thumbnail/metadata backends supporting:
 
-* Python Imaging Library (PIL)
+* Python Imaging Library (PIL), e.g. `Pillow <https://python-pillow.org/>`_ >= 6.0
 * PyQt
 * PythonMagick
 
