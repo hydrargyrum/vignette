@@ -1,0 +1,42 @@
+variables:
+    PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+
+cache:
+    paths:
+        - ".cache/pip"
+
+default:
+    image: "python:3"
+
+build:
+    stage: "build"
+    script:
+        - "pip install build"
+        - "python3 -m build ."
+    artifacts:
+        paths:
+            - "dist/*"
+        expire_in: "1 week"
+
+install:
+    stage: "test"
+    script:
+        - "pip install dist/*.whl"
+
+syntax check:
+    stage: "test"
+    script:
+        - "python3 -m compileall vignette/"
+
+check build:
+    stage: "test"
+    script:
+        - "pip install twine"
+        - "twine check dist/*"
+
+test:
+    stage: "test"
+    script:
+        - "pip install pytest"
+        - "pip install .[pillow,pyqt6]"
+        - "pytest -vv test*.py"
