@@ -518,22 +518,26 @@ class ThumbnailBackend(object):
 	@staticmethod
 	def guess_magic(path):
 		try:
-			import magic
+			# project: https://pypi.org/project/puremagic/
+			import puremagic
 		except ImportError:
-			return None
+			pass
+		else:
+			return puremagic.from_file(path)
 
-		if hasattr(magic, 'detect_from_filename'):
-			# libmagic's python bindings
+		try:
+			import magic.compat
+			import threading.local
+		except ImportError:
+			pass
+		else:
+			# project: https://pypi.org/project/python-magic/
+			# note: Magic instances are not thread-safe
 			try:
-				return magic.detect_from_filename(path).mime_type
-			except ValueError:
-				return None
-		elif hasattr(magic, 'from_file'):
-			# pip's python-magic
-			try:
-				return magic.from_file(path, mime=True)
-			except IOError:
-				return None
+				thread_magic = threading.local.vignette_magic
+			except AttributeError:
+				thread_magic = threading.local.vignette_magic = magic.Magic(mime=True)
+			return thread_magic.from_file(path)
 
 	def is_accepted(self, path):
 		mime = self.guess_magic(path) or self.guess_mime(path)
